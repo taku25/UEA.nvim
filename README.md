@@ -45,7 +45,7 @@ return {
   'taku25/UEA.nvim',
   -- UNL.nvim and UEP.nvim are required dependencies
   dependencies = {
-     'taku25/UNL.nvim',
+     { 'taku25/UNL.nvim', lazy=false, },
      'taku25/UEP.nvim',
      'nvim-telescope/telescope.nvim', -- Optional
   },
