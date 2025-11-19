@@ -35,13 +35,13 @@ local function create_lens_updater(bufnr, line)
     
     -- 1. 継承数 (ea = Inheritance icon)
     if state.children and state.children > 0 then
-      table.insert(parts, string.format("ea %d Children", state.children))
+      table.insert(parts, string.format("  %d Children", state.children))
     end
 
     -- 2. 参照数 ( = Reference icon)
     -- RefsにはChildrenも含まれることが多いですが、全体像として表示
     if state.refs and state.refs > 0 then
-      table.insert(parts, string.format(" %d Refs", state.refs))
+      table.insert(parts, string.format("  %d Refs", state.refs))
     end
 
     if #parts == 0 then return end
