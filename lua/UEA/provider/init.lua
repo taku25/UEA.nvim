@@ -15,6 +15,7 @@ function M.setup()
   local get_dependencies_provider = require("UEA.provider.get_dependencies")
   local show_in_editor_provider = require("UEA.provider.show_in_editor") -- [New]
   local open_in_editor_provider = require("UEA.provider.open_in_editor") -- [New Name]
+  local get_bp_parent_provider = require("UEA.provider.get_bp_parent") -- [New Name]
 
   provider.register({
     capability = "uea.get_usages",
@@ -57,6 +58,13 @@ function M.setup()
     name = "UEA.nvim",
     priority = 100,
     impl = open_in_editor_provider,
+  })
+
+  provider.register({
+    capability = "uea.get_bp_parent", -- [New Name]
+    name = "UEA.nvim",
+    priority = 100,
+    impl = get_bp_parent_provider,
   })
   log.info("Registered UEA providers to UNL.nvim.")
 end

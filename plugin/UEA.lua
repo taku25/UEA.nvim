@@ -61,5 +61,17 @@ builder.create({
       desc = "Copy the Unreal Object Reference path of an asset to clipboard.",
       args = {},
     },
+    ["system_open"] = {
+      handler = uea_api.system_open,
+      bang = true,
+      desc = "Open the file (or asset location) in system explorer.",
+      args = { { name = "asset_path", required = false } },
+    },
+    ["find_bp_parent"] = { -- [New Name]
+      handler = uea_api.find_bp_parent,
+      bang = true,
+      desc = "Show parent class information for a binary asset.",
+      args = { { name = "asset_path", required = false } },
+    },
   },
 })
