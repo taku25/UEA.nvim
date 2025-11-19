@@ -2,7 +2,7 @@
 
 # Unreal Engine Asset Inspector 💓 Neovim
 
-`UEA.nvim` is a Neovim plugin designed to inspect Unreal Engine assets and find their relationships. It bridges the gap between your C++ code and your Blueprint assets by finding `.uasset` usages of your native C++ classes.
+`UEA.nvim` is a Neovim plugin designed to inspect Unreal Engine assets and find their relationships. It bridges the gap between your C++ code and your Blueprint assets by finding `.uasset` usages of your native C++ classes and scanning asset references.
 
 This is a utility plugin in the **Unreal Neovim Plugin suite**. It depends on [UNL.nvim](https://github.com/taku25/UNL.nvim) as its library and consumes data from [UEP.nvim](https://github.com/taku25/UEP.nvim).
 
@@ -13,15 +13,25 @@ This is a utility plugin in the **Unreal Neovim Plugin suite**. It depends on [U
 ## ✨ Features
 
   * **Blueprint Usage Finding**:
-      * Provides a `:UEA find_bp_usages` command to find all Blueprint assets (`.uasset`, `.umap`) that inherit from a specific C++ class.
-  * **Fast Binary Grep**:
-      * Uses [ripgrep (rg)](https://github.com/BurntSushi/ripgrep) to perform extremely fast, non-intrusive searches directly against the binary asset files.
+      * `:UEA find_bp_usages` finds all Blueprint assets (`.uasset`, `.umap`) that inherit from a specific C++ class.
+  * **Asset Reference Finding**:
+      * `:UEA find_references` finds assets that reference a specific asset (similar to the "Referencers" view in UE).
+  * **Asset Dependency Finding**:
+      * `:UEA find_dependencies` finds internal dependencies of a binary asset (similar to the "Dependencies" view in UE).
+  * **Binary String Grep**:
+      * `:UEA grep_string` searches for arbitrary strings (GameplayTags, socket names, etc.) within binary assets.
+  * **Editor Integration**:
+      * `:UEA show_in_editor` syncs the Unreal Editor Content Browser to the selected asset via Web Remote Control.
+  * **System Integration**:
+      * `:UEA system_open` opens the asset's location in the OS file explorer (Explorer/Finder).
+  * **Code Lens**:
+      * Displays the number of Blueprint references as virtual text next to C++ class definitions. (Requires `rg`)
+  * **Fast Binary Scanning**:
+      * Uses [ripgrep (rg)](https://github.com/BurntSushi/ripgrep) and [fd](https://github.com/sharkdp/fd) for extremely fast, non-intrusive asset scanning.
   * **Ecosystem Integration**:
-      * Consumes the `uep.get_project_classes` provider from `UEP.nvim` to display a searchable list of all C++ classes in the project.
-      * Automatically strips C++ prefixes (`A`, `U`, `F`, etc.) to find the correct `NativeParentClass` name within assets.
-  * **UI Integration**:
-      * Leverages `UNL.nvim`'s UI abstraction layer to automatically use UI frontends like [Telescope](https://github.com/nvim-telescope/telescope.nvim) and [fzf-lua](https://github.com/ibhagwan/fzf-lua).
-      * The default "submit" action copies the selected asset's game path (e.g., `/Game/Blueprints/BP_MyActor`) to the clipboard, ready to be pasted into the Unreal Editor's content browser.
+      * Consumes C++ class data from `UEP.nvim`.
+      * Automatically strips C++ prefixes (`A`, `U`, `F`, etc.) to correctly match asset data.
+      * Intelligent exclusion of UE5 OFPA (One File Per Actor) folders to reduce noise.
 
 ## 🔧 Requirements
 
@@ -29,6 +39,7 @@ This is a utility plugin in the **Unreal Neovim Plugin suite**. It depends on [U
   * [**UNL.nvim**](https://github.com/taku25/UNL.nvim) (**Required**)
   * [**UEP.nvim**](https://github.com/taku25/UEP.nvim) (**Required** for C++ class provider)
   * [rg](https://github.com/BurntSushi/ripgrep) (**Required for asset searching**)
+  * [fd](https://github.com/sharkdp/fd) (**Required for asset listing**)
   * **Optional (Strongly recommended for the full experience):**
       * **UI (Picker):**
           * [telescope.nvim](https://github.com/nvim-telescope/telescope.nvim)
@@ -45,15 +56,14 @@ return {
   'taku25/UEA.nvim',
   -- UNL.nvim and UEP.nvim are required dependencies
   dependencies = {
-     { 'taku25/UNL.nvim', lazy=false, },
-     'taku25/UEP.nvim',
-     'nvim-telescope/telescope.nvim', -- Optional
+    { 'taku25/UNL.nvim', lazy=false, },
+     'nvim-telescope/telescope.nvim', -- オプション
   },
   opts = {
     -- UEA-specific settings can be placed here
   },
 }
-```
+````
 
 ## ⚙️ Configuration
 
@@ -64,9 +74,9 @@ Below are the default values related to `UEA.nvim`.
 ```lua
 -- Place inside the spec for UEA.nvim or UNL.nvim in lazy.nvim
 opts = {
-  -- UEA-specific settings
-  uea = {
-    -- Section for future UEA-specific settings
+  -- Settings for Code Lens (virtual text)
+  code_lens = {
+    enable = true, -- Enable/disable automatic Code Lens
   },
   
   -- Asset grep ('rg') configuration
@@ -75,11 +85,12 @@ opts = {
     base_command = "rg",
     
     -- The search pattern template. %s is replaced with the C++ base class name.
-    search_pattern_template = "NativeParentClass.*'%s'",
+    search_pattern_template = "NativeParentClass.*%s",
     
     -- Glob patterns for assets to search.
     glob_patterns = {
-      "BP_*.uasset",
+      "*.uasset",
+      "*.umap",
     }
   },
 
@@ -100,36 +111,93 @@ All commands start with `:UEA`.
 ```viml
 " Find Blueprint usages of a C++ class.
 :UEA find_bp_usages[!] [ClassName]
+
+" Find assets referencing a specific asset.
+:UEA find_references[!] [AssetPath]
+
+" Find internal dependencies of an asset.
+:UEA find_dependencies[!] [AssetPath]
+
+" Show parent class information for a binary asset.
+:UEA find_bp_parent[!] [AssetPath]
+
+" Grep for a string inside assets.
+:UEA grep_string[!] [Query]
+
+" Sync the Unreal Editor Content Browser to the asset.
+:UEA show_in_editor[!] [AssetPath]
+
+" Open the asset's location in system explorer.
+:UEA system_open[!] [AssetPath]
+
+" Copy the Unreal Object Path of an asset to clipboard.
+:UEA copy_reference[!]
+
+" Manually refresh Code Lens.
+:UEA refresh_lens
 ```
 
 ### Command Details
 
   * **`:UEA find_bp_usages[!] [ClassName]`**:
       * Finds all Blueprint assets (`.uasset`, `.umap`) that inherit from the specified C++ class.
-      * Without `!`: Uses the `[ClassName]` argument if provided, otherwise it uses the word under the cursor.
-      * With `!`: Ignores arguments and the word under the cursor, and always opens a picker UI to select a C++ class from the entire project (provided by `UEP.nvim`).
-      * **Action**: Pressing `<Enter>` on a selection in the results picker will copy the asset's game path (e.g., `/Game/Blueprints/BP_MyActor`) to the clipboard.
+      * `!` (Bang): Ignores arguments and opens a picker UI to select a C++ class from the entire project (provided by `UEP.nvim`).
+      * `[ClassName]`: If omitted, uses the word under the cursor (`<cword>`).
+  * **`:UEA find_references[!] [AssetPath]`**:
+      * Finds other assets that reference the specified asset.
+      * `!` (Bang): Opens a picker UI to select an asset from the Content directory.
+      * `[AssetPath]`: If omitted, checks the clipboard for an asset path (e.g., `/Game/BP_Hero`). If empty, prompts for input.
+  * **`:UEA find_dependencies[!] [AssetPath]`**:
+      * Finds assets that the specified asset depends on (Reference Viewer: Dependencies).
+      * Usage is the same as `:UEA find_references`.
+  * **`:UEA grep_string[!] [Query]`**:
+      * Searches for an arbitrary string within binary assets in the Content directory. Useful for finding GameplayTags, socket names, or property names.
+      * `!` (Bang): Prompts for the search query.
+      * `[Query]`: If omitted, uses the word under the cursor.
+  * **`:UEA find_bp_parent[!] [AssetPath]`**:
+      * Extracts and displays the parent class information (`NativeParentClass`) from a binary asset file.
+      * Usage is the same as `:UEA find_references`.
+  * **`:UEA show_in_editor[!] [AssetPath]`**:
+      * Sends a command to the running Unreal Editor (via Web Remote Control) to sync the Content Browser to the specified asset.
+      * Requires "Remote Control API" plugin enabled in UE.
+      * Usage is the same as `:UEA find_references`.
+  * **`:UEA system_open[!] [AssetPath]`**:
+      * Opens the OS file explorer (Explorer/Finder) with the asset file selected.
+      * Usage is the same as `:UEA find_references`.
+  * **`:UEA copy_reference[!]`**:
+      * Opens a picker to select an asset and copies its Unreal Object Path (e.g., `/Game/BP_Hero.BP_Hero_C`) to the clipboard.
+  * **`:UEA refresh_lens`**:
+      * Manually triggers a refresh of the Code Lens (virtual text showing BP usage counts).
 
 ## 🤖 API & Automation Examples
 
 You can use the `UEA.api` module to integrate with other Neovim configurations.
 
-### Keymap Example
-
-Create a keymap to quickly find BP usages for the class under the cursor.
-
 ```lua
--- in init.lua or keymaps.lua
+local uea_api = require("UEA.api")
+
 -- Find usages for the class under the cursor
 vim.keymap.set('n', '<leader>au', function()
-  require('UEA.api').find_bp_usages({ has_bang = false })
-end, { noremap = true, silent = true, desc = "UEA: Find [A]sset [U]sages (Cursor)" })
+  uea_api.find_bp_usages({ has_bang = false })
+end, { noremap = true, silent = true, desc = "UEA: Find Asset Usages (Cursor)" })
 
--- Find usages by picking from a list of all C++ classes
-vim.keymap.set('n', '<leader>aU', function()
-  require('UEA.api').find_bp_usages({ has_bang = true })
-end, { noremap = true, silent = true, desc = "UEA: Find [A]sset [U]sages (Picker)" })
+-- Find references for the asset path in clipboard
+vim.keymap.set('n', '<leader>ar', function()
+  uea_api.find_references({ has_bang = false })
+end, { noremap = true, silent = true, desc = "UEA: Find References (Clipboard)" })
 ```
+
+### API Functions
+
+  * `uea_api.find_bp_usages({opts})`
+  * `uea_api.find_references({opts})`
+  * `uea_api.find_dependencies({opts})`
+  * `uea_api.find_bp_parent({opts})`
+  * `uea_api.grep_string({opts})`
+  * `uea_api.show_in_editor({opts})`
+  * `uea_api.system_open({opts})`
+  * `uea_api.copy_reference({opts})`
+  * `uea_api.refresh_lens()`
 
 ## Others
 

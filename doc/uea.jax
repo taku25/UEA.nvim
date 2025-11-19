@@ -1,0 +1,264 @@
+    *UEA.jax* For UEA.nvim                          vim: ft=help
+
+==============================================================================
+目次                                                     *UEA-contents*
+
+  1. はじめに..................................... |UEA-introduction|
+  2. 使い方....................................... |UEA-usage|
+     - コマンド一覧............................... |UEA-commands-list|
+     - コマンド詳細............................... |UEA-commands-detail|
+  3. 設定......................................... |UEA-configuration|
+     - セットアップ............................... |UEA-setup|
+     - フルコンフィグ............................. |UEA-default-configuration|
+  4. Lua API...................................... |UEA-api|
+  5. ライセンス................................... |UEA-license|
+
+==============================================================================
+1. はじめに                                         *UEA-introduction*
+
+UEA.nvim (Unreal Engine Asset Inspector) は、Unreal Engineのアセットを調査し、
+それらの関連性を発見するために設計されたNeovimプラグインです。
+C++クラスの `.uasset`（Blueprint）での使用箇所を検索したり、アセット間の
+参照関係をスキャンすることで、C++コードとBlueprintアセット間のギャップを
+埋めます。
+
+これは *Unreal Neovim Plugin Suite* のユーティリティプラグインであり、
+ライブラリとして UNL.nvim に、C++クラスデータの提供元として UEP.nvim に
+依存しています。
+
+主な機能:
+- Blueprint 使用箇所の検索:
+  特定のC++クラスを継承している全てのBlueprintアセット（`.uasset`, `.umap`）
+  を検索します。
+- アセット参照検索:
+  特定のアセットを参照している他のアセットを検索します (Reference Viewer)。
+- アセット依存関係検索:
+  バイナリアセットの内部的な依存関係を検索します。
+- バイナリ文字列Grep:
+  バイナリアセット内の任意の文字列（GameplayTagなど）を検索します。
+- エディタ連携:
+  Unreal Editorのコンテンツブラウザを選択したアセットに同期させます。
+- Code Lens:
+  C++クラス定義の横に、Blueprintでの使用数（参照数）を仮想テキストとして
+  表示します。
+
+==============================================================================
+2. 使い方                                                      *UEA-usage*
+
+UEA.nvim のコマンドはすべて `:UEA` から始まります。
+
+------------------------------------------------------------------------------
+コマンド一覧                                           *UEA-commands-list*
+
+:UEA find_bp_usages[!] [ClassName]
+    C++クラスのBlueprint使用箇所を検索します。
+:UEA find_references[!] [AssetPath]
+    アセットの被参照（参照されている場所）を検索します。
+:UEA find_dependencies[!] [AssetPath]
+    アセットの依存関係（参照しているもの）を検索します。
+:UEA find_bp_parent[!] [AssetPath]
+    バイナリアセットの親クラス情報を表示します。
+:UEA grep_string[!] [Query]
+    バイナリアセット内の文字列をGrepします。
+:UEA show_in_editor[!] [AssetPath]
+    Unreal Editorのコンテンツブラウザを同期します。
+:UEA system_open[!] [AssetPath]
+    OSのファイルエクスプローラーでアセットの場所を開きます。
+:UEA copy_reference[!]
+    アセットのUnrealオブジェクトパスをクリップボードにコピーします。
+:UEA refresh_lens
+    Code Lens（Blueprint参照数表示）を手動で更新します。
+
+------------------------------------------------------------------------------
+コマンド詳細                                     *UEA-commands-detail*
+
+:UEA find_bp_usages[!] [ClassName]
+    指定されたC++クラスから継承しているすべてのBlueprintアセットを検索します。
+    - `[!](bang)`: (省略可)
+      `!`を付けると、引数を無視し、プロジェクト全体のC++クラスを選択する
+      ピッカーUIを開きます (UEP.nvimが必要)。
+    - `[ClassName]`: (省略可)
+      省略した場合、カーソル下の単語 (`<cword>`) が使用されます。
+
+:UEA find_references[!] [AssetPath]
+    指定されたアセットを参照している他のアセットを検索します。
+    (Reference Viewer の Referencers 相当)
+    - `[!](bang)`: (省略可)
+      `!`を付けると、Contentディレクトリ内の全アセットから選択するピッカーUI
+      を開きます。
+    - `[AssetPath]`: (省略可)
+      省略した場合、クリップボード内のアセットパス（例: `/Game/BP_Hero`）を
+      確認します。クリップボードが空の場合は入力を促します。
+
+:UEA find_dependencies[!] [AssetPath]
+    指定されたアセットが依存している（内部で参照している）アセットを検索します。
+    (Reference Viewer の Dependencies 相当)
+    - 使い方は |:UEA find_references| と同様です。
+
+:UEA grep_string[!] [Query]
+    Contentディレクトリ内のバイナリアセット (`.uasset`, `.umap`) に対して
+    任意の文字列をGrep検索します。GameplayTagやソケット名を探すのに便利です。
+    - `[!](bang)`: (省略可) `!`を付けると、検索クエリの入力を促します。
+    - `[Query]`: (省略可) 省略した場合、カーソル下の単語を使用します。
+
+:UEA find_bp_parent[!] [AssetPath]
+    バイナリアセットファイルから親クラス情報 (`NativeParentClass`) を抽出し、
+    表示します。
+    - 使い方は |:UEA find_references| と同様です。
+
+:UEA show_in_editor[!] [AssetPath]
+    実行中のUnreal Editorに対して（Web Remote Control経由で）コマンドを送信し、
+    コンテンツブラウザを指定されたアセットに同期（フォーカス）させます。
+    - UE側で "Remote Control API" プラグインが有効である必要があります。
+    - 使い方は |:UEA find_references| と同様です。
+
+:UEA system_open[!] [AssetPath]
+    OSのファイルエクスプローラー（Explorer/Finder）で、アセットファイルが
+    選択された状態でフォルダを開きます。
+    - 使い方は |:UEA find_references| と同様です。
+
+:UEA copy_reference[!]
+    ピッカーを開いてアセットを選択し、そのUnrealオブジェクトパスをクリップ
+    ボードにコピーします。
+    - Blueprintアセットの場合は自動的に末尾に `_C` を付与します。
+
+:UEA refresh_lens
+    Code Lens（クラス定義の横に表示されるBP参照数）を手動で更新します。
+    - Code Lens はファイルの読み込み・保存時に自動更新されますが、この
+      コマンドで強制的に再スキャンできます。
+
+==============================================================================
+3. 設定                                           *UEA-configuration*
+
+UEA.nvim の設定は、依存ライブラリである UNL.nvim の設定システムを通じて
+行われます。
+
+------------------------------------------------------------------------------
+セットアップ                                                  *UEA-setup*
+
+`lazy.nvim`を使っている場合、`opts`キーに設定テーブルを渡します。
+
+例:
+>lua
+  return {
+    'taku25/UEA.nvim',
+    dependencies = { 'taku25/UNL.nvim', 'taku25/UEP.nvim' },
+    opts = {
+      -- UNL.nvimを通じてUEAの設定を行う
+      code_lens = { enable = true },
+      asset_grep = {
+        glob_patterns = { "*.uasset", "*.umap" },
+      },
+    },
+  }
+<
+
+------------------------------------------------------------------------------
+フルコンフィグ                               *UEA-default-configuration*
+
+以下は、*UEA.nvim* に関連する設定可能なすべてのオプションと、そのデフォルト値
+です。
+
+>lua
+{
+  -- Code Lens (仮想テキスト) の設定
+  code_lens = {
+    enable = true, -- 自動Code Lensを有効/無効化
+  },
+
+  -- アセットgrep ('rg') の設定
+  asset_grep = {
+    -- 実行するコマンド
+    base_command = "rg",
+    
+    -- 検索パターンのテンプレート。 %s はC++のベースクラス名に置換されます
+    search_pattern_template = "NativeParentClass.*%s",
+    
+    -- 検索対象とするアセットのglobパターン
+    glob_patterns = {
+      "*.uasset",
+      "*.umap",
+    }
+  },
+
+  -- UIバックエンドの設定 (UNL.nvimから継承)
+  ui = {
+    picker = {
+      mode = "auto",
+      prefer = { "telescope", "fzf_lua", "native" },
+    },
+  },
+}
+<
+
+==============================================================================
+4. Lua API                                                     *UEA-api*
+
+UEA.nvim は外部連携のためのシンプルなAPIを提供します。
+
+>lua
+  local uea_api = require("UEA.api")
+<
+
+*uea_api.find_bp_usages({opts})*
+    C++クラスのBlueprint使用箇所を検索します。
+    `opts`: `{ has_bang = boolean, class_name = string }`
+
+*uea_api.find_references({opts})*
+    アセットの被参照を検索します。
+    `opts`: `{ has_bang = boolean, asset_path = string }`
+
+*uea_api.find_dependencies({opts})*
+    アセットの依存関係を検索します。
+    `opts`: `{ has_bang = boolean, asset_path = string }`
+
+*uea_api.find_bp_parent({opts})*
+    アセットの親クラスを検索します。
+    `opts`: `{ has_bang = boolean, asset_path = string }`
+
+*uea_api.grep_string({opts})*
+    アセット内をGrep検索します。
+    `opts`: `{ has_bang = boolean, query = string }`
+
+*uea_api.show_in_editor({opts})*
+    UEのコンテンツブラウザを同期します。
+    `opts`: `{ has_bang = boolean, asset_path = string }`
+
+*uea_api.system_open({opts})*
+    システムのエクスプローラーを開きます。
+    `opts`: `{ has_bang = boolean, asset_path = string }`
+
+*uea_api.copy_reference({opts})*
+    アセット参照パスをコピーします。
+    `opts`: `{ has_bang = boolean }` (常にtrue)
+
+*uea_api.refresh_lens()*
+    Code Lensを手動更新します。
+
+==============================================================================
+5. ライセンス                                                *UEA-license*
+
+MIT License
+
+Copyright (c) 2025 taku25
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+S
+
+==============================================================================
+ vim:tw=78:ts=8:ft=help:norl:

@@ -1,0 +1,265 @@
+*UEA.txt* For UEA.nvim                          vim: ft=help
+
+==============================================================================
+CONTENTS                                                 *UEA-contents*
+
+  1. Introduction................................. |UEA-introduction|
+  2. Usage........................................ |UEA-usage|
+     - Command List............................... |UEA-commands-list|
+     - Command Details............................ |UEA-commands-detail|
+  3. Configuration................................ |UEA-configuration|
+     - Setup...................................... |UEA-setup|
+     - Full Configuration......................... |UEA-default-configuration|
+  4. Lua API...................................... |UEA-api|
+  5. License...................................... |UEA-license|
+
+==============================================================================
+1. Introduction                                     *UEA-introduction*
+
+UEA.nvim (Unreal Engine Asset Inspector) is a Neovim plugin designed to
+inspect Unreal Engine assets and find their relationships.
+It bridges the gap between your C++ code and your Blueprint assets by finding
+`.uasset` usages of your native C++ classes and scanning asset references.
+
+It is a utility plugin in the *Unreal Neovim Plugin Suite* and depends on
+UNL.nvim as its library and UEP.nvim for C++ class data.
+
+Main Features:
+- Blueprint Usage Finding:
+  Finds all Blueprint assets (`.uasset`, `.umap`) that inherit from a specific
+  C++ class.
+- Asset Reference Finding:
+  Finds assets that reference a specific asset (similar to Reference Viewer).
+- Asset Dependency Finding:
+  Finds internal dependencies of a binary asset.
+- Binary String Grep:
+  Searches for arbitrary strings (GameplayTags, etc.) within binary assets.
+- Editor Integration:
+  Syncs the Unreal Editor Content Browser to a selected asset.
+- Code Lens:
+  Displays the number of Blueprint references as virtual text next to C++
+  class definitions.
+
+==============================================================================
+2. Usage                                                      *UEA-usage*
+
+All commands for UEA.nvim begin with `:UEA`.
+
+------------------------------------------------------------------------------
+Command List                                           *UEA-commands-list*
+
+:UEA find_bp_usages[!] [ClassName]
+    Finds Blueprint usages of a C++ class.
+:UEA find_references[!] [AssetPath]
+    Finds assets referencing a specific asset.
+:UEA find_dependencies[!] [AssetPath]
+    Finds internal dependencies of an asset.
+:UEA find_bp_parent[!] [AssetPath]
+    Shows the parent class information for a binary asset.
+:UEA grep_string[!] [Query]
+    Greps for a string inside binary assets.
+:UEA show_in_editor[!] [AssetPath]
+    Syncs the Unreal Editor Content Browser to the asset.
+:UEA system_open[!] [AssetPath]
+    Opens the asset's location in the system file explorer.
+:UEA copy_reference[!]
+    Copies the Unreal Object Path of an asset to the clipboard.
+:UEA refresh_lens
+    Manually refreshes the Code Lens (Blueprint reference counts).
+
+------------------------------------------------------------------------------
+Command Details                                     *UEA-commands-detail*
+
+:UEA find_bp_usages[!] [ClassName]
+    Finds all Blueprint assets that inherit from the specified C++ class.
+    - `[!](bang)`: (Optional)
+      If `!` is added, ignores arguments and opens a picker UI to select a
+      C++ class from the entire project (provided by UEP.nvim).
+    - `[ClassName]`: (Optional)
+      If omitted, uses the word under the cursor (`<cword>`).
+
+:UEA find_references[!] [AssetPath]
+    Finds other assets that reference the specified asset (Reference Viewer:
+    Referencers).
+    - `[!](bang)`: (Optional)
+      If `!` is added, opens a picker UI to select an asset from the Content
+      directory.
+    - `[AssetPath]`: (Optional)
+      If omitted, checks the clipboard for an asset path (e.g.,
+      `/Game/BP_Hero`). If the clipboard is empty, prompts for input.
+
+:UEA find_dependencies[!] [AssetPath]
+    Finds assets that the specified asset depends on (Reference Viewer:
+    Dependencies).
+    - Usage is the same as |:UEA find_references|.
+
+:UEA grep_string[!] [Query]
+    Searches for an arbitrary string within binary assets (`.uasset`, `.umap`)
+    in the Content directory. Useful for finding GameplayTags, socket names,
+    or property names.
+    - `[!](bang)`: (Optional)
+      If `!` is added, prompts for the search query.
+    - `[Query]`: (Optional)
+      If omitted, uses the word under the cursor.
+
+:UEA find_bp_parent[!] [AssetPath]
+    Extracts and displays the parent class information (`NativeParentClass`)
+    from a binary asset file.
+    - Usage is the same as |:UEA find_references|.
+
+:UEA show_in_editor[!] [AssetPath]
+    Sends a command to the running Unreal Editor (via Web Remote Control) to
+    sync the Content Browser to the specified asset.
+    - Requires "Remote Control API" plugin enabled in UE.
+    - Usage is the same as |:UEA find_references|.
+
+:UEA system_open[!] [AssetPath]
+    Opens the OS file explorer (Explorer/Finder) with the asset file selected.
+    - Usage is the same as |:UEA find_references|.
+
+:UEA copy_reference[!]
+    Opens a picker to select an asset and copies its Unreal Object Path to the
+    clipboard.
+    - Automatically appends `_C` for Blueprint assets.
+
+:UEA refresh_lens
+    Manually triggers a refresh of the Code Lens (virtual text showing BP
+    usage counts).
+    - Code Lens updates automatically on BufRead/BufWrite, but this command
+      can force an update.
+
+==============================================================================
+3. Configuration                                       *UEA-configuration*
+
+The configuration for UEA.nvim is managed through the settings system of its
+dependency library, UNL.nvim.
+
+------------------------------------------------------------------------------
+Setup                                                          *UEA-setup*
+
+If you are using `lazy.nvim`, pass a configuration table to the `opts` key.
+
+Example:
+>lua
+  return {
+    'taku25/UEA.nvim',
+    dependencies = { 'taku25/UNL.nvim', 'taku25/UEP.nvim' },
+    opts = {
+      -- Configure UEA through UNL.nvim
+      code_lens = { enable = true },
+      asset_grep = {
+        glob_patterns = { "*.uasset", "*.umap" },
+      },
+    },
+  }
+<
+
+------------------------------------------------------------------------------
+Full Configuration                           *UEA-default-configuration*
+
+The following are all configurable options related to UEA.nvim with their
+default values.
+
+>lua
+{
+  -- Settings for Code Lens (virtual text)
+  code_lens = {
+    enable = true, -- Enable/disable automatic Code Lens
+  },
+
+  -- Asset grep ('rg') configuration
+  asset_grep = {
+    -- The command to run.
+    base_command = "rg",
+    
+    -- The search pattern template. %s is replaced with the C++ base class name.
+    search_pattern_template = "NativeParentClass.*%s",
+    
+    -- Glob patterns for assets to search.
+    glob_patterns = {
+      "*.uasset",
+      "*.umap",
+    }
+  },
+
+  -- UI backend settings (inherited from UNL.nvim)
+  ui = {
+    picker = {
+      mode = "auto",
+      prefer = { "telescope", "fzf_lua", "native" },
+    },
+  },
+}
+<
+
+==============================================================================
+4. Lua API                                                     *UEA-api*
+
+UEA.nvim provides a simple API for external integration.
+
+>lua
+  local uea_api = require("UEA.api")
+<
+
+*uea_api.find_bp_usages({opts})*
+    Finds Blueprint usages of a C++ class.
+    `opts`: `{ has_bang = boolean, class_name = string }`
+
+*uea_api.find_references({opts})*
+    Finds asset references.
+    `opts`: `{ has_bang = boolean, asset_path = string }`
+
+*uea_api.find_dependencies({opts})*
+    Finds asset dependencies.
+    `opts`: `{ has_bang = boolean, asset_path = string }`
+
+*uea_api.find_bp_parent({opts})*
+    Finds the parent class of an asset.
+    `opts`: `{ has_bang = boolean, asset_path = string }`
+
+*uea_api.grep_string({opts})*
+    Greps inside assets.
+    `opts`: `{ has_bang = boolean, query = string }`
+
+*uea_api.show_in_editor({opts})*
+    Syncs the UE Content Browser.
+    `opts`: `{ has_bang = boolean, asset_path = string }`
+
+*uea_api.system_open({opts})*
+    Opens the system file explorer.
+    `opts`: `{ has_bang = boolean, asset_path = string }`
+
+*uea_api.copy_reference({opts})*
+    Copies asset reference path.
+    `opts`: `{ has_bang = boolean }` (always true for this command)
+
+*uea_api.refresh_lens()*
+    Refreshes the Code Lens manually.
+
+==============================================================================
+5. License                                                *UEA-license*
+
+MIT License
+
+Copyright (c) 2025 taku25
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+S
+
+==============================================================================
+ vim:tw=78:ts=8:ft=help:norl:
