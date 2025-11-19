@@ -43,5 +43,17 @@ builder.create({
       desc = "Find assets that the target asset depends on (Scan internal references).",
       args = { { name = "asset_path", required = false } },
     },
+    ["show_in_editor"] = {
+      handler = uea_api.show_in_editor,
+      bang = true,
+      desc = "Sync the Unreal Editor Content Browser to the specified asset.",
+      args = { { name = "asset_path", required = false } },
+    },
+    -- ["open_in_editor"] = {
+    --   handler = uea_api.open_in_editor,
+    --   bang = true,
+    --   desc = "Open the asset in Unreal Editor. Use '!' to pick.",
+    --   args = { { name = "asset_path", required = false } },
+    -- },
   },
 })
