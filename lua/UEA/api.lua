@@ -7,6 +7,7 @@ local show_in_editor_cmd = require("UEA.cmd.show_in_editor")
 local copy_reference_cmd = require("UEA.cmd.copy_reference") -- [New]
 local system_open_cmd = require("UEA.cmd.system_open")
 local find_bp_parent_cmd = require("UEA.cmd.find_bp_parent") -- [New Name]
+local lens = require("UEA.lens")
 
 local M = {}
 
@@ -47,4 +48,7 @@ function M.find_bp_parent(opts)
   find_bp_parent_cmd.run(opts or {})
 end
 
+function M.refresh_lens()
+  lens.refresh(vim.api.nvim_get_current_buf())
+end
 return M

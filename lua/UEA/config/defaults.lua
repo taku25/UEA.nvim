@@ -27,7 +27,11 @@ local M = {
     glob_patterns = {
       "BP_*.uasset",
     }
-  }
+  },
+
+  code_lens = {
+    enable = true, -- デフォルトで有効
+  },
 }
 
 return M

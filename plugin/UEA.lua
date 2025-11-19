@@ -73,5 +73,10 @@ builder.create({
       desc = "Show parent class information for a binary asset.",
       args = { { name = "asset_path", required = false } },
     },
+    ["refresh_lens"] = {
+      handler = uea_api.refresh_lens,
+      desc = "Refresh the Blueprint reference counts (Code Lens).",
+      args = {},
+    },
   },
 })
