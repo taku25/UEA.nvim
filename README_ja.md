@@ -113,8 +113,9 @@ opts = {
     -- 実行するコマンド
     base_command = "rg",
     
-    -- 検索パターンのテンプレート。 %s はC++のベースクラス名(プレフィックス除外後)に置換されます
-    search_pattern_template = "NativeParentClass.*%s",
+    search_pattern_template = "%s",
+    
+    lens_inheritance_pattern = "NativeParentClass.*'.*%s'",
     
     -- 検索対象とするアセットのglobパターン
     glob_patterns = {

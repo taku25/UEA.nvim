@@ -114,8 +114,9 @@ opts = {
     -- The command to run.
     base_command = "rg",
     
-    -- The search pattern template. %s is replaced with the C++ base class name.
-    search_pattern_template = "NativeParentClass.*%s",
+    search_pattern_template = "%s",
+    
+    lens_inheritance_pattern = "NativeParentClass.*'.*%s'",
     
     -- Glob patterns for assets to search.
     glob_patterns = {
