@@ -55,5 +55,11 @@ builder.create({
     --   desc = "Open the asset in Unreal Editor. Use '!' to pick.",
     --   args = { { name = "asset_path", required = false } },
     -- },
+    ["copy_reference"] = {
+      handler = uea_api.copy_reference,
+      bang = true,
+      desc = "Copy the Unreal Object Reference path of an asset to clipboard.",
+      args = {},
+    },
   },
 })
