@@ -37,5 +37,11 @@ builder.create({
         { name = "query", required = false },
       },
     },
+    ["find_dependencies"] = {
+      handler = uea_api.find_dependencies,
+      bang = true,
+      desc = "Find assets that the target asset depends on (Scan internal references).",
+      args = { { name = "asset_path", required = false } },
+    },
   },
 })
