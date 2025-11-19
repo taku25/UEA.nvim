@@ -29,5 +29,13 @@ builder.create({
         { name = "asset_path", required = false }, -- Optional: clipboard fallback
       },
     },
+    ["grep_string"] = {
+      handler = uea_api.grep_string,
+      bang = true,
+      desc = "Grep for a string inside assets. Use '!' to prompt for input.",
+      args = {
+        { name = "query", required = false },
+      },
+    },
   },
 })

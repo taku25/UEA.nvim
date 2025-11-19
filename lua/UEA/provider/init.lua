@@ -11,6 +11,8 @@ function M.setup()
 
   local get_usages_provider = require("UEA.provider.get_usages")
   local get_references_provider = require("UEA.provider.get_references") -- [New]
+  local grep_string_provider = require("UEA.provider.grep_string") -- [New]
+
   provider.register({
     capability = "uea.get_usages",
     name = "UEA.nvim",
@@ -25,6 +27,15 @@ function M.setup()
     priority = 100,
     impl = get_references_provider,
   })
+
+  provider.register({
+    capability = "uea.grep_string",
+    name = "UEA.nvim",
+    priority = 100,
+    impl = grep_string_provider,
+  })
+
+
   log.info("Registered UEA providers to UNL.nvim.")
 end
 
