@@ -21,6 +21,13 @@ builder.create({
         { name = "class_name", required = false },
       },
     },
-    -- (将来的に :UEA inspect <asset_path> などを追加可能)
+    ["find_references"] = {
+      handler = uea_api.find_references,
+      bang = true, -- [!] bangを有効化
+      desc = "Find other assets referencing the specified asset path.",
+      args = {
+        { name = "asset_path", required = false }, -- Optional: clipboard fallback
+      },
+    },
   },
 })
