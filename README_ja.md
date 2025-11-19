@@ -38,6 +38,7 @@
   * Neovim v0.11.3 以上
   * [**UNL.nvim**](https://github.com/taku25/UNL.nvim) (**必須**)
   * [**UEP.nvim**](https://github.com/taku25/UEP.nvim) (**必須** C++クラスのプロバイダーとして)
+  * [**tree-sitter-unreal-cpp**](https://github.com/taku25/tree-sitter-unreal-cpp) (**必須** Unreal C++クラスの構文解析)
   * [rg](https://github.com/BurntSushi/ripgrep) (**アセット検索に必須**)
   * [fd](https://github.com/sharkdp/fd) (**アセットリスト取得に必須**)
   * **オプション (完全な体験のために、導入を強く推奨):**
@@ -58,6 +59,34 @@ return {
   dependencies = {
     { 'taku25/UNL.nvim', lazy=false, },
      'nvim-telescope/telescope.nvim', -- オプション
+    { 
+      'nvim-treesitter/nvim-treesitter',
+      branch = "main",
+      config = function(_, opts)
+        vim.api.nvim_create_autocmd('User', { pattern = 'TSUpdate',
+          callback = function()
+            local parsers = require('nvim-treesitter.parsers')
+            parsers.cpp = {
+              install_info = {
+                url  = 'https://github.com/taku25/tree-sitter-unreal-cpp',
+                revision  = '89f3408b2f701a8b002c9ea690ae2d24bb2aae49',
+              },
+            }
+          end
+        })
+        local langs = { "c", "cpp",  }
+        require("nvim-treesitter").install(langs)
+        local group = vim.api.nvim_create_augroup('MyTreesitter', { clear = true })
+        vim.api.nvim_create_autocmd('FileType', {
+          group = group,
+          pattern = langs,
+          callback = function(args)
+            vim.treesitter.start(args.buf)
+            vim.bo[args.buf].indentexpr = "v:lua.require'nvim-treesitter'.indentexpr()"
+          end,
+        })
+      end
+    }
   },
   opts = {
     -- UEA固有の設定があればここに記述します

@@ -38,6 +38,7 @@ This is a utility plugin in the **Unreal Neovim Plugin suite**. It depends on [U
   * Neovim v0.11.3 or later
   * [**UNL.nvim**](https://github.com/taku25/UNL.nvim) (**Required**)
   * [**UEP.nvim**](https://github.com/taku25/UEP.nvim) (**Required** for C++ class provider)
+  * [**tree-sitter-unreal-cpp**](https://github.com/taku25/tree-sitter-unreal-cpp) (**Required** Tree sitter Unreal C++)
   * [rg](https://github.com/BurntSushi/ripgrep) (**Required for asset searching**)
   * [fd](https://github.com/sharkdp/fd) (**Required for asset listing**)
   * **Optional (Strongly recommended for the full experience):**
@@ -57,7 +58,36 @@ return {
   -- UNL.nvim and UEP.nvim are required dependencies
   dependencies = {
     { 'taku25/UNL.nvim', lazy=false, },
-     'nvim-telescope/telescope.nvim', -- オプション
+     'nvim-telescope/telescope.nvim', -- Option
+    { 
+      'nvim-treesitter/nvim-treesitter',
+      branch = "main",
+      config = function(_, opts)
+        vim.api.nvim_create_autocmd('User', { pattern = 'TSUpdate',
+          callback = function()
+            local parsers = require('nvim-treesitter.parsers')
+            parsers.cpp = {
+              install_info = {
+                url  = 'https://github.com/taku25/tree-sitter-unreal-cpp',
+                revision  = '89f3408b2f701a8b002c9ea690ae2d24bb2aae49',
+              },
+            }
+          end
+        })
+        local langs = { "c", "cpp",  }
+        require("nvim-treesitter").install(langs)
+        local group = vim.api.nvim_create_augroup('MyTreesitter', { clear = true })
+        vim.api.nvim_create_autocmd('FileType', {
+          group = group,
+          pattern = langs,
+          callback = function(args)
+            vim.treesitter.start(args.buf)
+            vim.bo[args.buf].indentexpr = "v:lua.require'nvim-treesitter'.indentexpr()"
+          end,
+        })
+      end
+    }
+    
   },
   opts = {
     -- UEA-specific settings can be placed here
