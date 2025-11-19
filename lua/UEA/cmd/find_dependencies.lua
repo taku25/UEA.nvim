@@ -30,9 +30,9 @@ local function show_dependencies_picker(source_asset, dependencies)
     logger_name = "UEA",
     preview_enabled = false,
     on_submit = function(selection)
-      if selection and selection.value then
-        vim.fn.setreg('"', selection.value)
-        vim.notify("Copied: " .. selection.value)
+      if selection then
+        vim.fn.setreg('"', selection)
+        vim.notify("Copied: " .. selection)
       end
     end,
   })

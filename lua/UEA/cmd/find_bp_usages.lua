@@ -149,9 +149,9 @@ local function pick_class_and_find_usages()
     preview_enabled = true,
     
     on_submit = function(selection)
-      if selection and selection.value then
-        -- 4. 選択されたクラスで参照検索を実行
-        find_usages_for_class(selection.value)
+      if selection then
+        local selected_name = selection
+        find_usages_for_class(selected_name)
       end
     end,
   })

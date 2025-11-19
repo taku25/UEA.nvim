@@ -40,9 +40,9 @@ local function show_references_picker(target_asset, result_paths)
     preview_enabled = false,
     
     on_submit = function(selection)
-      if selection and selection.value then
-        vim.fn.setreg('"', selection.value)
-        vim.notify(string.format("Copied to clipboard: %s", selection.value))
+      if selection then
+        vim.fn.setreg('"', selection)
+        vim.notify(string.format("Copied to clipboard: %s", selection))
       end
     end,
   })

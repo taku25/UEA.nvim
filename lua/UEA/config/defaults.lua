@@ -18,14 +18,19 @@ local M = {
   cache = { dirname = "UEA" },
 
   -- アセットgrep ('rg') のための設定
-  asset_grep = {
+asset_grep = {
     base_command = "rg",
-    -- {CLASS_NAME} は cmd/find_bp_usages.lua で置き換えられます
-    search_pattern_template = "NativeParentClass.*'.*%s'",
+    -- Usages検索用（固定文字列検索のためテンプレートはシンプルに）
+    search_pattern_template = "%s",
     
-    -- 検索対象とするアセットのglobパターン
+    -- Lens: 継承関係検索用の正規表現 (バイナリ対応)
+    -- NativeParentClass ... (任意の文字) ... /Script/Module.ClassName
+    -- [./] は区切り文字を期待しています
+    lens_inheritance_pattern = "NativeParentClass.*'.*%s'",
+
     glob_patterns = {
       "BP_*.uasset",
+      "*.umap",
     }
   },
 
