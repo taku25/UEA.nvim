@@ -8,45 +8,30 @@ local fs = require("vim.fs")
 local function get_config() return require("UNL.config").get("UEA") end
 local M = {}
 
----
--- ファイルパスからUnreal参照パスを生成する
--- @param file_path string フルパス
--- @param project_root string プロジェクトルート
--- @return string|nil 参照パス (e.g. /Game/Folder/BP_Actor.BP_Actor_C)
+-- (generate_reference_path 関数は変更なし)
 local function generate_reference_path(file_path, project_root)
   local norm_root = unl_path.normalize(project_root)
   local norm_file = unl_path.normalize(file_path)
-  
-  -- プロジェクトルートを除去 -> /Content/Folder/Asset.uasset
   local relative = norm_file:gsub("^" .. vim.pesc(norm_root), "")
-  
-  -- /Content -> /Game
   local game_path = relative:gsub("^/Content", "/Game")
-  
-  -- 拡張子とベース名を取得
   local ext = vim.fn.fnamemodify(game_path, ":e")
   local base_name = vim.fn.fnamemodify(game_path, ":t:r")
   local dir_name = vim.fn.fnamemodify(game_path, ":h")
   
   if ext ~= "uasset" and ext ~= "umap" then return nil end
 
-  -- 基本のオブジェクトパス: /Game/Folder/Asset.Asset
   local object_path = string.format("%s/%s.%s", dir_name, base_name, base_name)
-
-  -- Blueprintクラス判定のヒューリスティック
-  -- (BP_, WBP_, ABP_ で始まる、または .uasset である場合、_C を付けるのが一般的)
-  -- ここではシンプルに一般的なプレフィックスで判定する
   local is_blueprint = base_name:match("^BP_") or base_name:match("^WBP_") or base_name:match("^ABP_") or base_name:match("^E_") 
   
   if is_blueprint then
     object_path = object_path .. "_C"
   end
-  
   return object_path
 end
 
 local function pick_and_copy()
   local logger = log.get()
+  -- ★修正: unl_find_picker の require チェックを修正
   if not unl_find_picker_ok then return logger.error("find_picker unavailable.") end
   
   if vim.fn.executable("fd") ~= 1 then
@@ -59,7 +44,6 @@ local function pick_and_copy()
   local content_dir = unl_path.normalize(fs.joinpath(project_root, "Content"))
   if vim.fn.isdirectory(content_dir) == 0 then return end
 
-  -- fdコマンド (OFPA除外)
   local fd_cmd = {
       "fd", "--type", "f", "--color", "never",
       "--no-ignore", "--hidden",
@@ -76,7 +60,7 @@ local function pick_and_copy()
     logger_name = "UEA",
     exec_cmd = fd_cmd,
     cwd = content_dir,
-    file_ignore_patterns = {}, -- Telescope除外を無視
+    file_ignore_patterns = {}, 
     preview_enabled = false,
     
     on_submit = function(selected_file)
@@ -85,7 +69,7 @@ local function pick_and_copy()
       local ref_path = generate_reference_path(selected_file, project_root)
       if ref_path then
         vim.fn.setreg('"', ref_path)
-        vim.fn.setreg('+', ref_path) -- クリップボードにも
+        vim.fn.setreg('+', ref_path)
         vim.notify("Copied: " .. ref_path, vim.log.levels.INFO)
       else
         vim.notify("Failed to generate reference path.", vim.log.levels.WARN)
