@@ -69,7 +69,7 @@ return {
             parsers.cpp = {
               install_info = {
                 url  = 'https://github.com/taku25/tree-sitter-unreal-cpp',
-                revision  = '89f3408b2f701a8b002c9ea690ae2d24bb2aae49',
+                revision  = '67198f1b35e052c6dbd587492ad53168d18a19a8',
               },
             }
           end
