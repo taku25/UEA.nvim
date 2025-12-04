@@ -234,22 +234,30 @@ end, { noremap = true, silent = true, desc = "UEA: Find References (Clipboard)" 
 
 **Unreal Engine Related Plugins:**
 
-  * **[UEP.nvim](https://github.com/taku25/UEP.nvim)**
-      * Analyzes `uproject` files for easy file navigation.
-  * **[UEA.nvim](https://www.google.com/search?q=https://github.com/taku25/UEA.nvim)** (This plugin)
+  * [**UnrealDev.nvim**](https://github.com/taku25/UnrealDev.nvim)
+      * **Recommended:** An all-in-one suite to install and manage all these Unreal Engine related plugins at once.
+  * [**UNX.nvim**](https://github.com/taku25/UNX.nvim)
+      * **Standard:** A dedicated explorer and sidebar optimized for Unreal Engine development. It visualizes project structure, class hierarchies, and profiling insights without depending on external file tree plugins.
+  * [UEP.nvim](https://github.com/taku25/UEP.nvim)
+      * Analyzes .uproject to simplify file navigation.
+  * [UEA.nvim](https://github.com/taku25/UEA.nvim)
       * Finds Blueprint usages of C++ classes.
-  * **[UBT.nvim](https://github.com/taku25/UBT.nvim)**
-      * Asynchronously run Build, GenerateClangDataBase, and other tasks from Neovim.
-  * **[UCM.nvim](https://github.com/taku25/UCM.nvim)**
-      * Add and delete classes directly from Neovim.
-  * **[ULG.nvim](https://github.com/taku25/ULG.nvim)**
-      * View UE logs, live coding status, stat fps, and more within nvim.
-  * **[USH.nvim](https://github.com/taku25/USH.nvim)**
-      * Interact with `ushell` from nvim.
-  * **[neo-tree-unl](https://github.com/taku25/neo-tree-unl.nvim)**
-      * Display an IDE-like project explorer.
-  * **[tree-sitter for Unreal Engine](https://github.com/taku25/tree-sitter-unreal-cpp)**
-      * Provides tree-sitter highlighting, including support for `UCLASS` and other Unreal Engine specific syntax.
+  * [UBT.nvim](https://github.com/taku25/UBT.nvim)
+      * Use Build, GenerateClangDataBase, etc., asynchronously from Neovim.
+  * [UCM.nvim](https://github.com/taku25/UCM.nvim)
+      * Add or delete classes from Neovim.
+  * [ULG.nvim](https://github.com/taku25/ULG.nvim)
+      * View UE logs, LiveCoding, stat fps, etc., from Neovim.
+  * [USH.nvim](https://github.com/taku25/USH.nvim)
+      * Interact with ushell from Neovim.
+  * [USX.nvim](https://github.com/taku25/USX.nvim)
+      * Plugin for highlight settings for tree-sitter-unreal-cpp and tree-sitter-unreal-shader.
+  * [neo-tree-unl](https://github.com/taku25/neo-tree-unl.nvim)
+      * Integration for [neo-tree.nvim](https://github.com/nvim-neo-tree/neo-tree.nvim) users to display an IDE-like project explorer.
+  * [tree-sitter for Unreal Engine](https://github.com/taku25/tree-sitter-unreal-cpp)
+      * Provides syntax highlighting using tree-sitter, including UCLASS, etc.
+  * [tree-sitter for Unreal Engine Shader](https://github.com/taku25/tree-sitter-unreal-shader)
+      * Provides syntax highlighting for Unreal Shaders like .usf, .ush.
 
 ## 📜 License
 
