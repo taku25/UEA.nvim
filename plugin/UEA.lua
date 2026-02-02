@@ -9,7 +9,6 @@ builder.create({
   
   dependencies = {
     { name = "rg", check = function() return vim.fn.executable("rg") == 1 end, msg = "Please install ripgrep (rg) for asset searching." },
-    { name = "UEP.nvim", check = function() return pcall(require, "UEP.api") end, msg = "UEP.nvim not found (required for C++ class list)." },
   },
 
   subcommands = {
