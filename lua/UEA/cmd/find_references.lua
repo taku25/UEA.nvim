@@ -65,17 +65,16 @@ local function execute_search(asset_path)
   
   if not unl_api_ok then return logger.error("UNL.api not available.") end
 
-  local req_ok, results = unl_api.provider.request("uea.get_references", {
+  unl_api.provider.request("uea.get_references", {
     asset_path = clean_path,
     logger_name = "UEA"
-  })
-
-  if not req_ok then return logger.error("Failed to get references.") end
-  if not results or #results == 0 then
-    return vim.notify(string.format("No references found for: %s", clean_path), vim.log.levels.INFO)
-  end
-
-  show_references_picker(clean_path, results)
+  }, function(ok, results)
+    if not ok then return logger.error("Failed to get references: %s", tostring(results)) end
+    if not results or #results == 0 then
+      return vim.notify(string.format("No references found for: %s", clean_path), vim.log.levels.INFO)
+    end
+    show_references_picker(clean_path, results)
+  end)
 end
 
 -- [!] 修正版: アセットを選択して検索を実行する

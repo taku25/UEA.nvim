@@ -1,39 +1,37 @@
 local log_mod = require("UEA.logger")
 local grep_core = require("UEA.cmd.core.grep") -- ★共通モジュール
 local unl_finder_ok, unl_finder = pcall(require, "UNL.finder")
+local unl_api_ok, unl_api = pcall(require, "UNL.api")
 
 local M = {}
 
-function M.request(opts)
+function M.request(opts, callback)
   local log = log_mod.get()
-  if not opts or not opts.query or opts.query == "" then return nil end
-  if not unl_finder_ok then return nil end
-  
-  local project_root = unl_finder.project.find_project_root(vim.loop.cwd())
-  if not project_root then return nil end
-  
-  local conf = require("UNL.config").get("UEA")
-
-  log.debug("Grepping assets for string: '%s'", opts.query)
-  
-  -- コマンド構築
-  local rg_cmd = grep_core.build_command({
-    pattern = opts.query,
-    project_root = project_root,
-    config = conf.asset_grep or {},
-    fixed_strings = true,
-    follow_symlinks = true,
-  })
-
-  local results = vim.fn.systemlist(rg_cmd)
-  
-  local final_paths = {}
-  for _, path in ipairs(results) do
-    if path and path ~= "" then table.insert(final_paths, path) end
+  if not opts or not opts.query or opts.query == "" then 
+    if callback then callback(false, "No query") end
+    return nil 
+  end
+  if not unl_api_ok then 
+    if callback then callback(false, "UNL API not found") end
+    return nil 
   end
 
-  log.info("Found %d matches.", #final_paths)
-  return final_paths
+  log.debug("Grepping assets for string: '%s' (via Server)", opts.query)
+  
+  local all_results = {}
+  unl_api.db.grep_assets(opts.query, function(items)
+    for _, item in ipairs(items) do
+      table.insert(all_results, item)
+    end
+  end, function(success, err)
+    if success then
+      log.info("Found %d matches (via Server).", #all_results)
+      if callback then callback(true, all_results) end
+    else
+      log.error("Server-side grep_string failed: %s", tostring(err))
+      if callback then callback(false, err) end
+    end
+  end)
 end
 
 return M
