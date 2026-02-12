@@ -53,17 +53,16 @@ local function execute_grep(query)
   
   if not unl_api_ok then return logger.error("UNL.api not available.") end
 
-  local req_ok, results = unl_api.provider.request("uea.grep_string", {
+  unl_api.provider.request("uea.grep_string", {
     query = query,
     logger_name = "UEA"
-  })
-
-  if not req_ok then return logger.error("Failed to grep string.") end
-  if not results or #results == 0 then
-    return vim.notify(string.format("No assets found containing: '%s'", query), vim.log.levels.INFO)
-  end
-
-  show_results_picker(query, results)
+  }, function(ok, results)
+    if not ok then return logger.error("Failed to grep string: %s", tostring(results)) end
+    if not results or #results == 0 then
+      return vim.notify(string.format("No assets found containing: '%s'", query), vim.log.levels.INFO)
+    end
+    show_results_picker(query, results)
+  end)
 end
 
 function M.run(opts)
