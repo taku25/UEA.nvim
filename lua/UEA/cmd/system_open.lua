@@ -1,6 +1,6 @@
 -- lua/UEA/cmd/system_open.lua (Explorer終了コード対策版)
 local log = require("UEA.logger")
-local unl_find_picker_ok, unl_find_picker = pcall(require, "UNL.backend.find_picker")
+local unl_picker_ok, unl_picker = pcall(require, "UNL.picker")
 local unl_finder_ok, unl_finder = pcall(require, "UNL.finder")
 local unl_path_ok, unl_path = pcall(require, "UNL.path")
 local fs = require("vim.fs")
@@ -57,7 +57,7 @@ end
 
 local function pick_and_open()
   local logger = log.get()
-  if not unl_find_picker_ok then return logger.error("find_picker unavailable.") end
+  if not unl_picker_ok then return logger.error("find_picker unavailable.") end
   
   local project_root = unl_finder.project.find_project_root(vim.loop.cwd())
   if not project_root then return end
@@ -73,7 +73,7 @@ local function pick_and_open()
       ".", content_dir
   }
 
-  unl_find_picker.pick({
+  unl_picker.open({
     title = "Select Asset to Reveal",
     conf = get_config(),
     logger_name = "UEA",
@@ -121,3 +121,5 @@ function M.run(opts)
 end
 
 return M
+
+

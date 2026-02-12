@@ -1,7 +1,7 @@
 -- lua/UEA/cmd/find_bp_parent.lua
 local log = require("UEA.logger")
 local unl_api_ok, unl_api = pcall(require, "UNL.api")
-local unl_find_picker_ok, unl_find_picker = pcall(require, "UNL.backend.find_picker")
+local unl_picker_ok, unl_picker = pcall(require, "UNL.picker")
 local unl_finder_ok, unl_finder = pcall(require, "UNL.finder")
 local unl_path_ok, unl_path = pcall(require, "UNL.path")
 local fs = require("vim.fs")
@@ -44,7 +44,7 @@ end
 
 local function pick_and_find()
   local logger = log.get()
-  if not unl_find_picker_ok then return logger.error("find_picker unavailable.") end
+  if not unl_picker_ok then return logger.error("find_picker unavailable.") end
   
   local project_root = unl_finder.project.find_project_root(vim.loop.cwd())
   if not project_root then return end
@@ -62,7 +62,7 @@ local function pick_and_find()
       ".", content_dir
   }
 
-  unl_find_picker.pick({
+  unl_picker.open({
     title = "Select Asset to Find Parent Class",
     conf = get_config(),
     logger_name = "UEA",
@@ -103,3 +103,5 @@ function M.run(opts)
 end
 
 return M
+
+

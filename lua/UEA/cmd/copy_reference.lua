@@ -1,6 +1,6 @@
 -- lua/UEA/cmd/copy_reference.lua
 local log = require("UEA.logger")
-local unl_find_picker_ok, unl_find_picker = pcall(require, "UNL.backend.find_picker")
+local unl_picker_ok, unl_picker = pcall(require, "UNL.picker")
 local unl_finder = require("UNL.finder")
 local unl_path = require("UNL.path")
 local fs = require("vim.fs")
@@ -71,7 +71,7 @@ end
 
 local function pick_and_copy()
   local logger = log.get()
-  if not unl_find_picker_ok then return logger.error("find_picker unavailable.") end
+  if not unl_picker_ok then return logger.error("find_picker unavailable.") end
   
   if vim.fn.executable("fd") ~= 1 then
       return logger.error("UEA: 'fd' command not found.")
@@ -93,7 +93,7 @@ local function pick_and_copy()
       ".", content_dir
   }
 
-  unl_find_picker.pick({
+  unl_picker.open({
     title = "Select Asset to Copy Reference",
     conf = get_config(),
     logger_name = "UEA",
@@ -142,3 +142,5 @@ function M.run(opts)
 end
 
 return M
+
+

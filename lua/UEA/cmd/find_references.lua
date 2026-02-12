@@ -1,8 +1,7 @@
 -- lua/UEA/cmd/find_references.lua (OFPA除外版)
 local log = require("UEA.logger")
 local unl_api_ok, unl_api = pcall(require, "UNL.api")
-local unl_picker_ok, unl_picker = pcall(require, "UNL.backend.picker")
-local unl_find_picker_ok, unl_find_picker = pcall(require, "UNL.backend.find_picker")
+local unl_picker = require("UNL.picker")
 local unl_finder_ok, unl_finder = pcall(require, "UNL.finder")
 local unl_path_ok, unl_path = pcall(require, "UNL.path")
 local fs = require("vim.fs")
@@ -31,18 +30,18 @@ local function show_references_picker(target_asset, result_paths)
 
   table.sort(picker_items, function(a, b) return a.display < b.display end)
 
-  unl_picker.pick({
-    kind = "uea_asset_references",
+  unl_picker.open({
     title = "bp Assets Referencing: " .. target_asset,
     items = picker_items,
     conf = get_config(),
     logger_name = "UEA",
     preview_enabled = false,
     
-    on_submit = function(selection)
+    on_confirm = function(selection)
       if selection then
-        vim.fn.setreg('"', selection)
-        vim.notify(string.format("Copied to clipboard: %s", selection))
+        local value = type(selection) == "table" and (selection.value or selection) or selection
+        vim.fn.setreg('"', value)
+        vim.notify(string.format("Copied to clipboard: %s", value))
       end
     end,
   })
@@ -81,9 +80,6 @@ end
 -- [!] 修正版: アセットを選択して検索を実行する
 local function pick_asset_and_find_references()
   local logger = log.get()
-  if not unl_find_picker_ok then
-      return logger.error("UNL.backend.find_picker not available.")
-  end
   
   if vim.fn.executable("fd") ~= 1 then
       return logger.error("UEA: 'fd' command not found. Please install 'fd-find' (sharkdp/fd).")
@@ -124,19 +120,22 @@ local function pick_asset_and_find_references()
 
   logger.debug("UEA Picker CMD: %s", table.concat(fd_cmd, " "))
 
-  unl_find_picker.pick({
+  unl_picker.open({
     title = "Select Asset to Find References",
     conf = get_config(),
     logger_name = "UEA",
-    exec_cmd = fd_cmd,
-    file_ignore_patterns = {}, -- Telescopeの無視設定を無効化
+    source = {
+      type = "job",
+      command = fd_cmd,
+    },
     preview_enabled = false,
     
-    on_submit = function(selected_file)
+    on_confirm = function(selected_file)
       if not selected_file then return end
       
+      local value = type(selected_file) == "table" and (selected_file.value or selected_file) or selected_file
       local norm_root = unl_path.normalize(project_root)
-      local norm_file = unl_path.normalize(selected_file)
+      local norm_file = unl_path.normalize(value)
       
       local relative = norm_file:gsub("^" .. vim.pesc(norm_root), "")
       local game_path = relative:gsub("^/Content", "/Game"):gsub("%.uasset$", ""):gsub("%.umap$", "")
@@ -145,6 +144,7 @@ local function pick_asset_and_find_references()
     end,
   })
 end
+
 
 function M.run(opts)
   opts = opts or {}
