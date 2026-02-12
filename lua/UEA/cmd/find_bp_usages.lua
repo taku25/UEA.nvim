@@ -1,7 +1,7 @@
 -- lua/UEA/cmd/find_bp_usages.lua (RPC Async Version)
 local log = require("UEA.logger")
 local unl_api = require("UNL.api")
-local unl_picker = require("UNL.backend.picker")
+local unl_picker = require("UNL.picker")
 local unl_finder = require("UNL.finder")
 local unl_path = require("UNL.path")
 
@@ -23,7 +23,7 @@ local function show_usages_picker(class_name, usage_paths)
   end
   table.sort(picker_items, function(a, b) return a.display < b.display end)
 
-  unl_picker.pick({
+  unl_picker.open({
     kind = "uea_bp_usages", title = "bp Blueprint Usages for: " .. class_name,
     items = picker_items, conf = get_config(), logger_name = "UEA", preview_enabled = false,
     on_submit = function(selection)
@@ -77,7 +77,7 @@ local function pick_class_and_find_usages()
       if #picker_items == 0 then return log.get().warn("RPC returned no C++ classes.") end
       table.sort(picker_items, function(a, b) return a.value < b.value end)
 
-      unl_picker.pick({
+      unl_picker.open({
         kind = "uea_select_class", title = " Select C++ Class to Find Usages",
         items = picker_items, conf = get_config(), logger_name = "UEA", preview_enabled = true,
         on_submit = function(selection) if selection then find_usages_for_class(selection) end end,
