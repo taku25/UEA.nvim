@@ -127,14 +127,21 @@ function M.refresh(bufnr)
         if not vim.api.nvim_buf_is_valid(bufnr) then return end
         vim.api.nvim_buf_clear_namespace(bufnr, ns_id, 0, -1)
         
+        local unl_path = require("UNL.path")
+
         -- symbols is an array of class objects
         for _, cls in ipairs(symbols) do
           local class_name = cls.name
           local line = cls.line - 1 -- 0-based
           
-          -- More inclusive filter: any class/struct/enum should be scanned
-          local is_ue_symbol = cls.kind:match("^[Uu]") or class_name:match("^[UAFETSI][A-Z]")
-          if is_ue_symbol then
+          -- Strict filter: 
+          -- 1. Symbol must be a class/struct/enum container
+          -- 2. Symbol MUST belong to the current file (exclude symbols from related .cpp/.h)
+          local k = cls.kind:lower()
+          local is_container = k == "class" or k == "uclass" or k == "struct" or k == "ustruct" or k == "enum" or k == "uenum" or k == "uinterface"
+          local is_same_file = unl_path.equal(cls.file_path, buf_name)
+          
+          if is_container and is_same_file then
             scan_class_usages(bufnr, line, cls)
           end
         end
