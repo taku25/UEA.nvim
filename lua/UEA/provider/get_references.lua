@@ -1,5 +1,4 @@
 local log_mod = require("UEA.logger")
-local grep_core = require("UEA.cmd.core.grep") -- ★共通モジュール
 local unl_finder_ok, unl_finder = pcall(require, "UNL.finder")
 local unl_api_ok, unl_api = pcall(require, "UNL.api")
 
@@ -19,21 +18,18 @@ function M.request(opts, callback)
   -- 検索語（アセットパスから拡張子除去）
   local search_term = opts.asset_path:gsub("%.uasset$", ""):gsub("%.umap$", "")
   
-  log.debug("Searching references for: '%s' (via Server)", search_term)
+  log.debug("Searching references for: '%s' (via Server Graph)", search_term)
   
-  local all_results = {}
-  unl_api.db.grep_assets(search_term, function(items)
-    for _, item in ipairs(items) do
-      table.insert(all_results, item)
-    end
-  end, function(success, err)
-    if success then
-      log.info("Found %d referencing assets (via Server).", #all_results)
-      if callback then callback(true, all_results) end
-    else
+  unl_api.db.get_asset_usages(search_term, function(results, err)
+    if err then
       log.error("Server-side reference search failed: %s", tostring(err))
       if callback then callback(false, err) end
+      return
     end
+
+    local refs = (results and results.references) or {}
+    log.info("Found %d referencing assets (via Server Graph).", #refs)
+    if callback then callback(true, refs) end
   end)
 end
 

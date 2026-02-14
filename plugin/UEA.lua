@@ -7,9 +7,7 @@ builder.create({
   cmd_name = "UEA",
   desc = "UEA: Unreal Engine Asset commands",
   
-  dependencies = {
-    { name = "rg", check = function() return vim.fn.executable("rg") == 1 end, msg = "Please install ripgrep (rg) for asset searching." },
-  },
+  dependencies = {},
 
   subcommands = {
     ["find_bp_usages"] = {
@@ -48,12 +46,12 @@ builder.create({
       desc = "Sync the Unreal Editor Content Browser to the specified asset.",
       args = { { name = "asset_path", required = false } },
     },
-    -- ["open_in_editor"] = {
-    --   handler = uea_api.open_in_editor,
-    --   bang = true,
-    --   desc = "Open the asset in Unreal Editor. Use '!' to pick.",
-    --   args = { { name = "asset_path", required = false } },
-    -- },
+    ["open_in_editor"] = {
+      handler = uea_api.open_in_editor,
+      bang = true,
+      desc = "Open the asset in Unreal Editor. Use '!' to pick.",
+      args = { { name = "asset_path", required = false } },
+    },
     ["copy_reference"] = {
       handler = uea_api.copy_reference,
       bang = true,

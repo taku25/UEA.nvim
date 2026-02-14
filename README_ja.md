@@ -27,7 +27,7 @@
   * **Code Lens**:
       * C++クラス定義の横に、Blueprintでの使用数（参照数）を仮想テキストとして表示します。
   * **高速なバイナリスキャン**:
-      * [ripgrep (rg)](https://github.com/BurntSushi/ripgrep) と [fd](https://github.com/sharkdp/fd) を使用し、バイナリアセットファイルに対して非常に高速で非侵入的な検索を実行します。
+      * `unl-server` (Rust) を使用し、バイナリアセットファイルに対して非常に高速で非侵入的な検索を実行します。
   * **エコシステム連携**:
       * `UEP.nvim` からC++クラスデータを取得します。
       * C++のプレフィックス（`A`, `U`など）を自動除去してマッチングします。
@@ -39,8 +39,6 @@
   * [**UNL.nvim**](https://github.com/taku25/UNL.nvim) (**必須**)
   * [**UEP.nvim**](https://github.com/taku25/UEP.nvim) (**必須** C++クラスのプロバイダーとして)
   * [**tree-sitter-unreal-cpp**](https://github.com/taku25/tree-sitter-unreal-cpp) (**必須** Unreal C++クラスの構文解析)
-  * [rg](https://github.com/BurntSushi/ripgrep) (**アセット検索に必須**)
-  * [fd](https://github.com/sharkdp/fd) (**アセットリスト取得に必須**)
   * **オプション (完全な体験のために、導入を強く推奨):**
       * **UI (Picker):**
           * [telescope.nvim](https://github.com/nvim-telescope/telescope.nvim)

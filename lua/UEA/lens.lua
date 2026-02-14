@@ -1,7 +1,6 @@
 -- lua/UEA/lens.lua
 local log = require("UEA.logger")
 local unl_api = require("UNL.api")
-local grep_core = require("UEA.cmd.core.grep")
 
 local M = {}
 
@@ -19,15 +18,27 @@ end
 
 -- 結果をマージして表示するクロージャ
 local function create_lens_updater(bufnr, line)
-  local state = { children = nil, refs = nil }
-  return function(type, count)
-    if type == "children" then state.children = count end
-    if type == "refs" then state.refs = count end
+  local state = { children = nil, refs = nil, is_scanning = false }
+  return function(type, count_or_status)
+    if count_or_status == "scanning" then
+      state.is_scanning = true
+    else
+      if type == "children" then state.children = count_or_status end
+      if type == "refs" then state.refs = count_or_status end
+    end
+
     if not bufnr or not vim.api.nvim_buf_is_valid(bufnr) then return end
+    
     local parts = {}
-    if state.children and state.children > 0 then table.insert(parts, string.format("  %d Children", state.children)) end
-    if state.refs and state.refs > 0 then table.insert(parts, string.format("  %d Refs", state.refs)) end
-    if #parts == 0 then return end
+    if state.is_scanning then
+      table.insert(parts, "  -- Children")
+      table.insert(parts, "  -- Refs")
+    else
+      -- Show 0 instead of hiding, for debugging
+      table.insert(parts, string.format("  %d Children", state.children or 0))
+      table.insert(parts, string.format("  %d Refs", state.refs or 0))
+    end
+
     local text = " " .. table.concat(parts, " | ")
     pcall(vim.api.nvim_buf_set_extmark, bufnr, ns_id, line, 0, {
       virt_text = { { text, "SpecialComment" } },
@@ -36,28 +47,58 @@ local function create_lens_updater(bufnr, line)
   end
 end
 
-local function scan_class_usages(bufnr, line, class_name, project_root)
-  local conf = require("UNL.config").get("UEA")
-  local grep_config = conf.asset_grep or {}
-  local base_name = class_name:match("^[AUFEIST]([A-Z].*)") or class_name
+local function scan_class_usages(bufnr, line, class_info)
+  local class_name = class_info.name
+  local module_name = class_info.module_name or "Engine"
   local update_lens = create_lens_updater(bufnr, line)
   
-  if not running_jobs[bufnr] then running_jobs[bufnr] = {} end
-  if not running_jobs[bufnr][line] then running_jobs[bufnr][line] = {} end
-  local jobs = running_jobs[bufnr][line]
+  -- Use module name from class info if available, otherwise fallback to Engine
+  local script_path = string.format("/Script/%s.%s", module_name, class_name)
+  
+  local cpp_children_count = 0
+  local bp_children_count = 0
+  local is_scanning = false
 
-  -- Job 1: Children
-  local pattern_children = string.format(grep_config.lens_inheritance_pattern or "NativeParentClass.*['\"]?.*%s", base_name)
-  local cmd_children = grep_core.build_command({ pattern = pattern_children, project_root = project_root, config = grep_config, fixed_strings = false, follow_symlinks = true })
-  local stdout_children = {}
-  local job_c = vim.fn.jobstart(cmd_children, { stdout_buffered = true, on_stdout = function(_, data) if data then for _, s in ipairs(data) do if s ~= "" then table.insert(stdout_children, s) end end end end, on_exit = function(_, code) vim.schedule(function() update_lens("children", #stdout_children) end) end })
-  table.insert(jobs, job_c)
+  local function refresh_display()
+    if is_scanning then
+      update_lens("children", "scanning")
+    else
+      update_lens("children", cpp_children_count + bp_children_count)
+    end
+  end
 
-  -- Job 2: Refs
-  local cmd_refs = grep_core.build_command({ pattern = base_name, project_root = project_root, config = grep_config, fixed_strings = true, follow_symlinks = true })
-  local stdout_refs = {}
-  local job_r = vim.fn.jobstart(cmd_refs, { stdout_buffered = true, on_stdout = function(_, data) if data then for _, s in ipairs(data) do if s ~= "" then table.insert(stdout_refs, s) end end end end, on_exit = function(_, code) vim.schedule(function() update_lens("refs", #stdout_refs) end) end })
-  table.insert(jobs, job_r)
+  -- 1. C++ Children (Inheritance from SQLite)
+  unl_api.db.get_derived_classes(class_name, function(results)
+    if results and #results > 0 and results[1].symbol_type == "scanning" then
+      is_scanning = true
+    else
+      -- サーバー側で既にアセットが含まれている場合は symbol_type == "uasset" を除外してカウント
+      -- (二重カウント防止)
+      local count = 0
+      if results then
+        for _, r in ipairs(results) do
+          if r.symbol_type ~= "uasset" then count = count + 1 end
+        end
+      end
+      cpp_children_count = count
+    end
+    refresh_display()
+  end)
+
+  -- 2. Refs (Usages in Assets) & BP Children
+  unl_api.db.get_asset_usages(script_path, function(results)
+    if results and results.status == "scanning" then
+      update_lens("refs", "scanning")
+      is_scanning = true
+    else
+      local refs = (results and results.references) or {}
+      local bp_derived = (results and results.derived) or {}
+      
+      update_lens("refs", #refs)
+      bp_children_count = #bp_derived
+    end
+    refresh_display()
+  end)
 end
 
 function M.refresh(bufnr)
@@ -70,24 +111,31 @@ function M.refresh(bufnr)
       if ft ~= "cpp" and ft ~= "c" and ft ~= "unreal_cpp" then return end
 
       local buf_name = vim.api.nvim_buf_get_name(bufnr)
-      local content = table.concat(vim.api.nvim_buf_get_lines(bufnr, 0, -1, false), "\n")
       
-      -- 解析をサーバーに委譲
-      unl_api.db.parse_buffer({ content = content, file_path = buf_name }, function(result, err)
-        if err or not result or not result.symbols then return end
+      unl_api.db.get_file_symbols(buf_name, function(symbols, err)
+        if err then
+          log.get().error("Lens: get_file_symbols failed: %s", tostring(err))
+          return
+        end
+        if not symbols or #symbols == 0 then
+          log.get().debug("Lens: No symbols found for %s", buf_name)
+          return
+        end
         
+        log.get().debug("Lens: Found %d symbols for %s", #symbols, buf_name)
+        
+        if not vim.api.nvim_buf_is_valid(bufnr) then return end
         vim.api.nvim_buf_clear_namespace(bufnr, ns_id, 0, -1)
-        clear_jobs(bufnr)
         
-        local project_root = require("UNL.finder").project.find_project_root(buf_name ~= "" and buf_name or vim.loop.cwd())
-        if not project_root then return end
-
-        -- サーバーから返されたシンボル情報をそのまま利用
-        for _, cls in ipairs(result.symbols) do
+        -- symbols is an array of class objects
+        for _, cls in ipairs(symbols) do
           local class_name = cls.name
           local line = cls.line - 1 -- 0-based
-          if class_name:match("^[UAFETSI][A-Z]") then
-            scan_class_usages(bufnr, line, class_name, project_root)
+          
+          -- More inclusive filter: any class/struct/enum should be scanned
+          local is_ue_symbol = cls.kind:match("^[Uu]") or class_name:match("^[UAFETSI][A-Z]")
+          if is_ue_symbol then
+            scan_class_usages(bufnr, line, cls)
           end
         end
       end)

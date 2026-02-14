@@ -1,5 +1,4 @@
 local log_mod = require("UEA.logger")
-local grep_core = require("UEA.cmd.core.grep") -- ★共通モジュール
 local unl_finder_ok, unl_finder = pcall(require, "UNL.finder")
 local unl_api_ok, unl_api = pcall(require, "UNL.api")
 

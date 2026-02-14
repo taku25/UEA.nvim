@@ -1,5 +1,4 @@
 local log_mod = require("UEA.logger")
-local grep_core = require("UEA.cmd.core.grep") -- ★共通モジュール
 local unl_finder_ok, unl_finder = pcall(require, "UNL.finder")
 local unl_api_ok, unl_api = pcall(require, "UNL.api")
 
@@ -22,23 +21,22 @@ function M.request(opts, callback)
   local match = base_class_name:match("^[AUFEIST]([A-Z].*)")
   if match then base_class_name = match end
   
-  log.debug("Original: '%s' -> Search: '%s' (via Server)", opts.class_name, base_class_name)
+  -- モジュール名を特定する必要があるが、まずは暫定的に全モジュールを想定した検索パスを生成
+  -- (サーバー側の GetAssetUsages はプレフィックスなしの ClassName でも fallback 検索する実装になっている)
+  local script_path = base_class_name
+  
+  log.debug("Finding usages for: '%s' (via Server Graph)", script_path)
 
-  local all_results = {}
-  unl_api.db.grep_assets(base_class_name, function(items)
-    -- Partial results
-    for _, item in ipairs(items) do
-      table.insert(all_results, item)
-    end
-  end, function(success, err)
-    -- Completion
-    if success then
-      log.info("Found %d usages for '%s' (via Server).", #all_results, opts.class_name)
-      if callback then callback(true, all_results) end
-    else
-      log.error("Server-side grep failed: %s", tostring(err))
+  unl_api.db.get_asset_usages(script_path, function(results, err)
+    if err then
+      log.error("Server-side usage search failed: %s", tostring(err))
       if callback then callback(false, err) end
+      return
     end
+
+    local refs = (results and results.references) or {}
+    log.info("Found %d usages (via Server Graph).", #refs)
+    if callback then callback(true, refs) end
   end)
 end
 

@@ -80,68 +80,43 @@ end
 local function pick_asset_and_find_references()
   local logger = log.get()
   
-  if vim.fn.executable("fd") ~= 1 then
-      return logger.error("UEA: 'fd' command not found. Please install 'fd-find' (sharkdp/fd).")
-  end
+  if not unl_api_ok then return logger.error("UNL.api not available.") end
 
-  local project_root = unl_finder.project.find_project_root(vim.loop.cwd())
-  if not project_root then return logger.error("Project root not found.") end
+  logger.info("Fetching asset list from server...")
+  unl_api.db.get_assets(function(assets, err)
+    if err then return logger.error("Failed to get assets: %s", tostring(err)) end
+    if not assets or #assets == 0 then return logger.warn("No assets found in project.") end
 
-  local content_dir = fs.joinpath(project_root, "Content")
-  content_dir = unl_path.normalize(content_dir)
-
-  if vim.fn.isdirectory(content_dir) == 0 then
-      return logger.warn("Content directory not found at: " .. content_dir)
-  end
-
-  -- ▼▼▼ 修正点: --exclude を追加 ▼▼▼
-  local fd_cmd = {
-      "fd",
-      "--type", "f",
-      "--color", "never",
-      "--no-ignore",
-      "--hidden",
-      "--extension", "uasset",
-      "--extension", "umap",
-      "--absolute-path",
-      "--path-separator", "/",
-      
-      -- 除外設定 (UE5 OFPA & Git)
-      "--exclude", "__ExternalActors__",
-      "--exclude", "__ExternalObjects__",
-      "--exclude", ".git",
-      "--exclude", "Collections", -- 念のため
-      -- "--exclude", "Developers",  -- 念のため
-      
-      ".",
-      content_dir
-  }
-
-  logger.debug("UEA Picker CMD: %s", table.concat(fd_cmd, " "))
-
-  unl_picker.open({
-    title = "Select Asset to Find References",
-    conf = get_config(),
-    logger_name = "UEA",
-    source = {
-      type = "job",
-      command = fd_cmd,
-    },
-    preview_enabled = false,
-    
-    on_confirm = function(selected_file)
-      if not selected_file then return end
-      
-      local value = type(selected_file) == "table" and (selected_file.value or selected_file) or selected_file
+    local project_root = unl_finder.project.find_project_root(vim.loop.cwd())
+    local picker_items = {}
+    for _, full_path in ipairs(assets) do
       local norm_root = unl_path.normalize(project_root)
-      local norm_file = unl_path.normalize(value)
-      
+      local norm_file = unl_path.normalize(full_path)
       local relative = norm_file:gsub("^" .. vim.pesc(norm_root), "")
       local game_path = relative:gsub("^/Content", "/Game"):gsub("%.uasset$", ""):gsub("%.umap$", "")
       
-      execute_search(game_path)
-    end,
-  })
+      table.insert(picker_items, {
+        display = game_path,
+        value = game_path,
+        filename = full_path,
+      })
+    end
+
+    table.sort(picker_items, function(a, b) return a.display < b.display end)
+
+    unl_picker.open({
+      title = "Select Asset to Find References",
+      items = picker_items,
+      conf = get_config(),
+      logger_name = "UEA",
+      preview_enabled = false,
+      on_confirm = function(selection)
+        if not selection then return end
+        local value = type(selection) == "table" and (selection.value or selection) or selection
+        execute_search(value)
+      end,
+    })
+  end)
 end
 
 

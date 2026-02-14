@@ -1,7 +1,6 @@
 -- lua/UEA/cmd/find_dependencies.lua
 local log = require("UEA.logger")
 local unl_api_ok, unl_api = pcall(require, "UNL.api")
-local unl_picker_ok, unl_picker = pcall(require, "UNL.backend.picker")
 local unl_picker_ok, unl_picker = pcall(require, "UNL.picker")
 local unl_finder_ok, unl_finder = pcall(require, "UNL.finder")
 local unl_path_ok, unl_path = pcall(require, "UNL.path")
@@ -16,9 +15,6 @@ local function show_dependencies_picker(source_asset, dependencies)
     table.insert(picker_items, {
       display = dep_path,
       value = dep_path,
-      -- dependenciesはパス文字列だけで、実ファイルがあるとは限らない (/Script/Engine.Actor など)
-      -- なので filename は解決できる場合のみ入れるロジックが必要だが、
-      -- 今回は簡易表示として value をそのまま出す
     })
   end
 
@@ -29,10 +25,11 @@ local function show_dependencies_picker(source_asset, dependencies)
     conf = get_config(),
     logger_name = "UEA",
     preview_enabled = false,
-    on_submit = function(selection)
+    on_confirm = function(selection)
       if selection then
-        vim.fn.setreg('"', selection)
-        vim.notify("Copied: " .. selection)
+        local val = type(selection) == "table" and (selection.value or selection) or selection
+        vim.fn.setreg('"', val)
+        vim.notify("Copied: " .. val)
       end
     end,
   })
@@ -48,55 +45,58 @@ local function execute_search(asset_path)
   logger.info("Scanning dependencies for: %s", clean_path)
   if not unl_api_ok then return logger.error("UNL.api not available.") end
 
-  local req_ok, results = unl_api.provider.request("uea.get_dependencies", {
+  unl_api.provider.request("uea.get_dependencies", {
     asset_path = clean_path,
     logger_name = "UEA"
-  })
-
-  if not req_ok then return logger.error("Failed to get dependencies.") end
-  if not results or #results == 0 then
-    return vim.notify("No dependencies found (or file parsing failed).", vim.log.levels.INFO)
-  end
-
-  show_dependencies_picker(clean_path, results)
+  }, function(ok, results)
+    if not ok then return logger.error("Failed to get dependencies: %s", tostring(results)) end
+    if not results or #results == 0 then
+      return vim.notify("No dependencies found (or file parsing failed).", vim.log.levels.INFO)
+    end
+    show_dependencies_picker(clean_path, results)
+  end)
 end
 
 -- Asset Picker (find_referencesと同じロジック)
 local function pick_asset_and_run()
   local logger = log.get()
-  if not unl_picker_ok then return logger.error("find_picker unavailable.") end
-  
-  local project_root = unl_finder.project.find_project_root(vim.loop.cwd())
-  if not project_root then return end
-  local content_dir = unl_path.normalize(fs.joinpath(project_root, "Content"))
+  if not unl_api_ok then return logger.error("UNL.api unavailable.") end
 
-  local fd_cmd = {
-      "fd", "--type", "f", "--color", "never",
-      "--no-ignore", "--hidden",
-      "--extension", "uasset", "--extension", "umap",
-      "--absolute-path", "--path-separator", "/",
-      "--exclude", "__ExternalActors__", "--exclude", "__ExternalObjects__",
-      "--exclude", ".git",
-      ".", content_dir
-  }
+  logger.info("Fetching asset list from server...")
+  unl_api.db.get_assets(function(assets, err)
+    if err then return logger.error("Failed to get assets: %s", tostring(err)) end
+    if not assets or #assets == 0 then return logger.warn("No assets found.") end
 
-  unl_picker.open({
-    title = "Select Asset to View Dependencies",
-    conf = get_config(),
-    logger_name = "UEA",
-    exec_cmd = fd_cmd,
-    cwd = content_dir,
-    file_ignore_patterns = {},
-    preview_enabled = false,
-    on_submit = function(selected_file)
-      if not selected_file then return end
+    local project_root = unl_finder.project.find_project_root(vim.loop.cwd())
+    local picker_items = {}
+    for _, full_path in ipairs(assets) do
       local norm_root = unl_path.normalize(project_root)
-      local norm_file = unl_path.normalize(selected_file)
+      local norm_file = unl_path.normalize(full_path)
       local relative = norm_file:gsub("^" .. vim.pesc(norm_root), "")
       local game_path = relative:gsub("^/Content", "/Game"):gsub("%.uasset$", ""):gsub("%.umap$", "")
-      execute_search(game_path)
-    end,
-  })
+      
+      table.insert(picker_items, {
+        display = game_path,
+        value = game_path,
+        filename = full_path,
+      })
+    end
+
+    table.sort(picker_items, function(a, b) return a.display < b.display end)
+
+    unl_picker.open({
+      title = "Select Asset to View Dependencies",
+      items = picker_items,
+      conf = get_config(),
+      logger_name = "UEA",
+      preview_enabled = false,
+      on_confirm = function(selection)
+        if not selection then return end
+        local value = type(selection) == "table" and (selection.value or selection) or selection
+        execute_search(value)
+      end,
+    })
+  end)
 end
 
 function M.run(opts)

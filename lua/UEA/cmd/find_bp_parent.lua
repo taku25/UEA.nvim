@@ -17,68 +17,70 @@ local function execute_find(asset_path)
   
   if not unl_api_ok then return end
 
-  -- [!] プロバイダー名変更
-  local req_ok, results = unl_api.provider.request("uea.get_bp_parent", {
+  -- [!] プロバイダー名変更 & 非同期化
+  unl_api.provider.request("uea.get_bp_parent", {
     asset_path = clean_path,
     logger_name = "UEA"
-  })
-
-  if req_ok and results and #results > 0 then
-    local msg = table.concat(results, "\n")
-    
-    -- nvim_echo 表示
-    vim.api.nvim_echo({
-      { "[UEA] Parent Class Info for: ", "Title" },
-      { clean_path, "Directory" },
-      { "\n\n", "Normal" },
-      { msg, "Type" }
-    }, true, {})
-    
-    vim.fn.setreg('"', msg)
-  else
-    vim.api.nvim_echo({
-      { "[UEA] No parent class info found (or parse failed).", "WarningMsg" }
-    }, true, {})
-  end
+  }, function(ok, results)
+    if ok and results and #results > 0 then
+      local msg = table.concat(results, "\n")
+      
+      -- nvim_echo 表示
+      vim.api.nvim_echo({
+        { "[UEA] Parent Class Info for: ", "Title" },
+        { clean_path, "Directory" },
+        { "\n\n", "Normal" },
+        { msg, "Type" }
+      }, true, {})
+      
+      vim.fn.setreg('"', msg)
+    else
+      vim.api.nvim_echo({
+        { "[UEA] No parent class info found (or parse failed).", "WarningMsg" }
+      }, true, {})
+    end
+  end)
 end
 
 local function pick_and_find()
   local logger = log.get()
-  if not unl_picker_ok then return logger.error("find_picker unavailable.") end
-  
-  local project_root = unl_finder.project.find_project_root(vim.loop.cwd())
-  if not project_root then return end
-  local content_dir = unl_path.normalize(fs.joinpath(project_root, "Content"))
+  if not unl_api_ok then return logger.error("UNL.api unavailable.") end
 
-  if vim.fn.isdirectory(content_dir) == 0 then return end
+  logger.info("Fetching asset list from server...")
+  unl_api.db.get_assets(function(assets, err)
+    if err then return logger.error("Failed to get assets: %s", tostring(err)) end
+    if not assets or #assets == 0 then return logger.warn("No assets found.") end
 
-  local fd_cmd = {
-      "fd", "--type", "f", "--color", "never",
-      "--no-ignore", "--hidden",
-      "--extension", "uasset", "--extension", "umap",
-      "--absolute-path", "--path-separator", "/",
-      "--exclude", "__ExternalActors__", "--exclude", "__ExternalObjects__",
-      "--exclude", ".git",
-      ".", content_dir
-  }
-
-  unl_picker.open({
-    title = "Select Asset to Find Parent Class",
-    conf = get_config(),
-    logger_name = "UEA",
-    exec_cmd = fd_cmd,
-    cwd = content_dir,
-    file_ignore_patterns = {},
-    preview_enabled = false,
-    on_submit = function(selected_file)
-      if not selected_file then return end
+    local project_root = unl_finder.project.find_project_root(vim.loop.cwd())
+    local picker_items = {}
+    for _, full_path in ipairs(assets) do
       local norm_root = unl_path.normalize(project_root)
-      local norm_file = unl_path.normalize(selected_file)
+      local norm_file = unl_path.normalize(full_path)
       local relative = norm_file:gsub("^" .. vim.pesc(norm_root), "")
       local game_path = relative:gsub("^/Content", "/Game"):gsub("%.uasset$", ""):gsub("%.umap$", "")
-      execute_find(game_path)
-    end,
-  })
+      
+      table.insert(picker_items, {
+        display = game_path,
+        value = game_path,
+        filename = full_path,
+      })
+    end
+
+    table.sort(picker_items, function(a, b) return a.display < b.display end)
+
+    unl_picker.open({
+      title = "Select Asset to Find Parent Class",
+      items = picker_items,
+      conf = get_config(),
+      logger_name = "UEA",
+      preview_enabled = false,
+      on_confirm = function(selection)
+        if not selection then return end
+        local value = type(selection) == "table" and (selection.value or selection) or selection
+        execute_find(value)
+      end,
+    })
+  end)
 end
 
 function M.run(opts)

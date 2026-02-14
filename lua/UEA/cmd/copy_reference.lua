@@ -71,50 +71,51 @@ end
 
 local function pick_and_copy()
   local logger = log.get()
-  if not unl_picker_ok then return logger.error("find_picker unavailable.") end
-  
-  if vim.fn.executable("fd") ~= 1 then
-      return logger.error("UEA: 'fd' command not found.")
-  end
+  local unl_api_ok, unl_api = pcall(require, "UNL.api")
+  if not unl_api_ok then return logger.error("UNL.api unavailable.") end
 
-  local project_root = unl_finder.project.find_project_root(vim.loop.cwd())
-  if not project_root then return logger.error("Project root not found.") end
+  logger.info("Fetching asset list from server...")
+  unl_api.db.get_assets(function(assets, err)
+    if err then return logger.error("Failed to get assets: %s", tostring(err)) end
+    if not assets or #assets == 0 then return logger.warn("No assets found.") end
 
-  local content_dir = unl_path.normalize(fs.joinpath(project_root, "Content"))
-  if vim.fn.isdirectory(content_dir) == 0 then return end
-
-  local fd_cmd = {
-      "fd", "--type", "f", "--color", "never",
-      "--no-ignore", "--hidden",
-      "--extension", "uasset", "--extension", "umap",
-      "--absolute-path", "--path-separator", "/",
-      "--exclude", "__ExternalActors__", "--exclude", "__ExternalObjects__",
-      "--exclude", ".git",
-      ".", content_dir
-  }
-
-  unl_picker.open({
-    title = "Select Asset to Copy Reference",
-    conf = get_config(),
-    logger_name = "UEA",
-    exec_cmd = fd_cmd,
-    cwd = content_dir,
-    file_ignore_patterns = {}, 
-    preview_enabled = false,
-    
-    on_submit = function(selected_file)
-      if not selected_file then return end
+    local project_root = unl_finder.project.find_project_root(vim.loop.cwd())
+    local picker_items = {}
+    for _, full_path in ipairs(assets) do
+      local norm_root = unl_path.normalize(project_root)
+      local norm_file = unl_path.normalize(full_path)
+      local relative = norm_file:gsub("^" .. vim.pesc(norm_root), "")
+      local game_path = relative:gsub("^/Content", "/Game"):gsub("%.uasset$", ""):gsub("%.umap$", "")
       
-      local result_code = generate_cpp_reference(selected_file, project_root)
-      if result_code then
-        vim.fn.setreg('"', result_code)
-        vim.fn.setreg('+', result_code)
-        vim.notify("Copied: " .. result_code, vim.log.levels.INFO)
-      else
-        vim.notify("Failed to generate reference path. (Not in Content?)", vim.log.levels.WARN)
-      end
-    end,
-  })
+      table.insert(picker_items, {
+        display = game_path,
+        value = full_path, -- パスが必要
+      })
+    end
+
+    table.sort(picker_items, function(a, b) return a.display < b.display end)
+
+    unl_picker.open({
+      title = "Select Asset to Copy Reference",
+      items = picker_items,
+      conf = get_config(),
+      logger_name = "UEA",
+      preview_enabled = false,
+      on_confirm = function(selection)
+        if not selection then return end
+        local value = type(selection) == "table" and (selection.value or selection) or selection
+        
+        local result_code = generate_cpp_reference(value, project_root)
+        if result_code then
+          vim.fn.setreg('"', result_code)
+          vim.fn.setreg('+', result_code)
+          vim.notify("Copied: " .. result_code, vim.log.levels.INFO)
+        else
+          vim.notify("Failed to generate reference path.", vim.log.levels.WARN)
+        end
+      end,
+    })
+  end)
 end
 
 function M.run(opts)
