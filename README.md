@@ -25,9 +25,9 @@ This is a utility plugin in the **Unreal Neovim Plugin suite**. It depends on [U
   * **System Integration**:
       * `:UEA system_open` opens the asset's location in the OS file explorer (Explorer/Finder).
   * **Code Lens**:
-      * Displays the number of Blueprint references as virtual text next to C++ class definitions. (Requires `rg`)
+      * Displays the number of Blueprint references and child classes as virtual text next to C++ class definitions.
   * **Fast Binary Scanning**:
-      * Uses [ripgrep (rg)](https://github.com/BurntSushi/ripgrep) and [fd](https://github.com/sharkdp/fd) for extremely fast, non-intrusive asset scanning.
+      * Uses `unl-server` (Rust) for extremely fast, non-intrusive asset scanning based on an in-memory AssetGraph.
   * **Ecosystem Integration**:
       * Consumes C++ class data from `UEP.nvim`.
       * Automatically strips C++ prefixes (`A`, `U`, `F`, etc.) to correctly match asset data.
@@ -39,8 +39,6 @@ This is a utility plugin in the **Unreal Neovim Plugin suite**. It depends on [U
   * [**UNL.nvim**](https://github.com/taku25/UNL.nvim) (**Required**)
   * [**UEP.nvim**](https://github.com/taku25/UEP.nvim) (**Required** for C++ class provider)
   * [**tree-sitter-unreal-cpp**](https://github.com/taku25/tree-sitter-unreal-cpp) (**Required** Tree sitter Unreal C++)
-  * [rg](https://github.com/BurntSushi/ripgrep) (**Required for asset searching**)
-  * [fd](https://github.com/sharkdp/fd) (**Required for asset listing**)
   * **Optional (Strongly recommended for the full experience):**
       * **UI (Picker):**
           * [telescope.nvim](https://github.com/nvim-telescope/telescope.nvim)
@@ -107,22 +105,6 @@ opts = {
   -- Settings for Code Lens (virtual text)
   code_lens = {
     enable = true, -- Enable/disable automatic Code Lens
-  },
-  
-  -- Asset grep ('rg') configuration
-  asset_grep = {
-    -- The command to run.
-    base_command = "rg",
-    
-    search_pattern_template = "%s",
-    
-    lens_inheritance_pattern = "NativeParentClass.*'.*%s'",
-    
-    -- Glob patterns for assets to search.
-    glob_patterns = {
-      "*.uasset",
-      "*.umap",
-    }
   },
 
   -- UI backend settings (inherited from UNL.nvim)

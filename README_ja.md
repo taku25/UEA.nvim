@@ -105,22 +105,6 @@ opts = {
   code_lens = {
     enable = true, -- 自動Code Lensを有効/無効化
   },
-  
-  -- アセットgrep ('rg') の設定
-  asset_grep = {
-    -- 実行するコマンド
-    base_command = "rg",
-    
-    search_pattern_template = "%s",
-    
-    lens_inheritance_pattern = "NativeParentClass.*'.*%s'",
-    
-    -- 検索対象とするアセットのglobパターン
-    glob_patterns = {
-      "*.uasset",
-      "*.umap",
-    }
-  },
 
   -- UIバックエンドの設定 (UNL.nvimから継承)
   ui = {

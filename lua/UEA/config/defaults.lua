@@ -17,17 +17,6 @@ local M = {
   
   cache = { dirname = "UEA" },
 
-  -- アセットgrep設定
-  asset_grep = {
-    base_command = "rg",
-    search_pattern_template = "%s",
-    lens_inheritance_pattern = "NativeParentClass.*'.*%s'",
-    glob_patterns = {
-      "BP_*.uasset",
-      "*.umap",
-    }
-  },
-
   code_lens = {
     enable = true,
   },
