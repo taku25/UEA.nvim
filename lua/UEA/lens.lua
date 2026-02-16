@@ -152,9 +152,14 @@ function M.refresh(bufnr)
           local k = (s.kind or ""):lower()
           local is_container = k == "class" or k == "uclass" or k == "struct" or k == "ustruct" or k == "enum" or k == "uenum" or k == "uinterface"
           local is_func = k:find("function") ~= nil or k:find("method") ~= nil
+          local is_field = k:find("field") ~= nil or k:find("property") ~= nil
           local is_same_file = unl_path.equal(s.file_path, buf_name)
 
-          if (is_container or is_func) and is_same_file then
+          -- Unreal Macro Check: only symbols with UFUNCTION/UPROPERTY etc. should have a lens
+          local flags = (s.flags or ""):upper()
+          local has_ue_macro = flags:find("UFUNCTION") or flags:find("UPROPERTY") or flags:find("UCLASS") or flags:find("USTRUCT") or flags:find("UENUM") or flags:find("UINTERFACE")
+
+          if (is_container or is_func or is_field) and is_same_file and has_ue_macro then
             -- For functions, ensure we have the class name they belong to
             if is_func and not s.declared_in then
               s.declared_in = parent_class_name
