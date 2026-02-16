@@ -34,8 +34,10 @@ local function create_lens_updater(bufnr, line)
       table.insert(parts, "  -- Children")
       table.insert(parts, "  -- Refs")
     else
-      -- Show 0 instead of hiding, for debugging
-      table.insert(parts, string.format("  %d Children", state.children or 0))
+      -- Only show children if count is present (Classes only)
+      if state.children then
+        table.insert(parts, string.format("  %d Children", state.children))
+      end
       table.insert(parts, string.format("  %d Refs", state.refs or 0))
     end
 
@@ -47,13 +49,23 @@ local function create_lens_updater(bufnr, line)
   end
 end
 
-local function scan_class_usages(bufnr, line, class_info)
-  local class_name = class_info.name
-  local module_name = class_info.module_name or "Engine"
+local function scan_symbol_usages(bufnr, line, symbol_info)
+  local symbol_name = symbol_info.name
+  local module_name = symbol_info.module_name or "Engine"
   local update_lens = create_lens_updater(bufnr, line)
   
-  -- Use module name from class info if available, otherwise fallback to Engine
-  local script_path = string.format("/Script/%s.%s", module_name, class_name)
+  local kind = symbol_info.kind:lower()
+  local is_func = kind:find("function") ~= nil
+  
+  -- Path format:
+  -- Class: /Script/Module.ClassName
+  -- Function: /Script/Module.ClassName:FunctionName
+  local search_path
+  if is_func and symbol_info.declared_in then
+    search_path = string.format("/Script/%s.%s:%s", module_name, symbol_info.declared_in, symbol_name)
+  else
+    search_path = string.format("/Script/%s.%s", module_name, symbol_name)
+  end
   
   local cpp_children_count = 0
   local bp_children_count = 0
@@ -63,30 +75,33 @@ local function scan_class_usages(bufnr, line, class_info)
     if is_scanning then
       update_lens("children", "scanning")
     else
-      update_lens("children", cpp_children_count + bp_children_count)
+      -- Functions don't have 'children' in the inheritance sense
+      if not is_func then
+        update_lens("children", cpp_children_count + bp_children_count)
+      end
     end
   end
 
-  -- 1. C++ Children (Inheritance from SQLite)
-  unl_api.db.get_derived_classes(class_name, function(results)
-    if results and #results > 0 and results[1].symbol_type == "scanning" then
-      is_scanning = true
-    else
-      -- サーバー側で既にアセットが含まれている場合は symbol_type == "uasset" を除外してカウント
-      -- (二重カウント防止)
-      local count = 0
-      if results then
-        for _, r in ipairs(results) do
-          if r.symbol_type ~= "uasset" then count = count + 1 end
+  -- 1. Children (Inheritance) - Only for classes/structs
+  if not is_func then
+    unl_api.db.get_derived_classes(symbol_name, function(results)
+      if results and #results > 0 and results[1].symbol_type == "scanning" then
+        is_scanning = true
+      else
+        local count = 0
+        if results then
+          for _, r in ipairs(results) do
+            if r.symbol_type ~= "uasset" then count = count + 1 end
+          end
         end
+        cpp_children_count = count
       end
-      cpp_children_count = count
-    end
-    refresh_display()
-  end)
+      refresh_display()
+    end)
+  end
 
   -- 2. Refs (Usages in Assets) & BP Children
-  unl_api.db.get_asset_usages(script_path, function(results)
+  unl_api.db.get_asset_usages(search_path, function(results)
     if results and results.status == "scanning" then
       update_lens("refs", "scanning")
       is_scanning = true
@@ -131,18 +146,18 @@ function M.refresh(bufnr)
 
         -- symbols is an array of class objects
         for _, cls in ipairs(symbols) do
-          local class_name = cls.name
           local line = cls.line - 1 -- 0-based
           
           -- Strict filter: 
-          -- 1. Symbol must be a class/struct/enum container
+          -- 1. Symbol must be a class/struct/enum container OR a function
           -- 2. Symbol MUST belong to the current file (exclude symbols from related .cpp/.h)
           local k = cls.kind:lower()
           local is_container = k == "class" or k == "uclass" or k == "struct" or k == "ustruct" or k == "enum" or k == "uenum" or k == "uinterface"
+          local is_func = k:find("function") ~= nil
           local is_same_file = unl_path.equal(cls.file_path, buf_name)
           
-          if is_container and is_same_file then
-            scan_class_usages(bufnr, line, cls)
+          if (is_container or is_func) and is_same_file then
+            scan_symbol_usages(bufnr, line, cls)
           end
         end
       end)
