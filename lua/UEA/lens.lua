@@ -144,21 +144,43 @@ function M.refresh(bufnr)
         
         local unl_path = require("UNL.path")
 
-        -- symbols is an array of class objects
-        for _, cls in ipairs(symbols) do
-          local line = cls.line - 1 -- 0-based
-          
-          -- Strict filter: 
-          -- 1. Symbol must be a class/struct/enum container OR a function
-          -- 2. Symbol MUST belong to the current file (exclude symbols from related .cpp/.h)
-          local k = cls.kind:lower()
+        -- Recursive function to process symbols and their members
+        local function process_symbol(s, parent_class_name)
+          local line = s.line - 1
+          if line < 0 then return end
+
+          local k = (s.kind or ""):lower()
           local is_container = k == "class" or k == "uclass" or k == "struct" or k == "ustruct" or k == "enum" or k == "uenum" or k == "uinterface"
-          local is_func = k:find("function") ~= nil
-          local is_same_file = unl_path.equal(cls.file_path, buf_name)
-          
+          local is_func = k:find("function") ~= nil or k:find("method") ~= nil
+          local is_same_file = unl_path.equal(s.file_path, buf_name)
+
           if (is_container or is_func) and is_same_file then
-            scan_symbol_usages(bufnr, line, cls)
+            -- For functions, ensure we have the class name they belong to
+            if is_func and not s.declared_in then
+              s.declared_in = parent_class_name
+            end
+            scan_symbol_usages(bufnr, line, s)
           end
+
+          -- If this is a container, process its members
+          if s.methods then
+            for _, group in pairs(s.methods) do
+              for _, m in ipairs(group) do
+                process_symbol(m, s.name or parent_class_name)
+              end
+            end
+          end
+          if s.fields then
+            for _, group in pairs(s.fields) do
+              for _, f in ipairs(group) do
+                process_symbol(f, s.name or parent_class_name)
+              end
+            end
+          end
+        end
+
+        for _, cls in ipairs(symbols) do
+          process_symbol(cls, nil)
         end
       end)
   end)
